@@ -37,10 +37,6 @@ def extract_and_store_objects_with_features(image):
     contours, rectangles, bounding_boxes, object_images, preprocessed_image = get_objects_in_frame(image)
     feature_list = get_image_features(contours)
     standardize_and_store_images_and_features(object_images, feature_list)
-
-    # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
-    # show_image(image)
-    # show_image(canvas_image)
     return bounding_boxes, preprocessed_image
 
 
@@ -61,7 +57,8 @@ def data_collection_phase(cam, interval=1.0):
 
 def clustering_phase(feature_type="cv_image_features"):
     if feature_type == "cv_image_features":
-        image_features = parse_cv_image_features()
+        data_paths, image_features = parse_cv_image_features()
+        image_array = load_images_from_path_list(data_paths)
 
     else:
         print("Not implemented yet")
@@ -74,7 +71,7 @@ def clustering_phase(feature_type="cv_image_features"):
     labels = kmeans.fit_to_data(reduced_features)
 
     plot_clusters(reduced_features, labels)
-
+    show_cluster_images(image_array, labels)
 
 
 def sorting_phase():
@@ -84,9 +81,11 @@ def sorting_phase():
 
 
 def main():
-    cam = CameraController()
-    data_collection_phase(cam)
-    cam.close_camera_connection()
+    clustering_phase()
+    # image_features = parse_cv_image_features()
+    # cam = CameraController()
+    # data_collection_phase(cam)
+    # cam.close_camera_connection()
 
 
 if __name__ == '__main__':

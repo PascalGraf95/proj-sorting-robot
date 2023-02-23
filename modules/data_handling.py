@@ -17,6 +17,16 @@ def load_images_from_path(path, target_size=(224, 224)):
     return image_batch
 
 
+def load_images_from_path_list(path_list, target_size=(224, 224)):
+    image_list = []
+    for file in path_list:
+        img = load_img(file, target_size=target_size)
+        x = img_to_array(img)
+        image_list.append(x)
+    image_batch = np.array(image_list, dtype=int)
+    return image_batch
+
+
 def plot_clusters(data, labels):
     if data.shape[1] == 3:
         fig = plt.figure()

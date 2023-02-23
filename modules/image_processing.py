@@ -3,6 +3,7 @@ import numpy as np
 import os
 from datetime import date
 import csv
+import ast
 
 
 def show_image(image, wait_for_ms=0):
@@ -179,14 +180,26 @@ def store_images_and_image_features(image_list, hu_moments_list):
         os.makedirs(dir_path)
 
     files_in_dir = len(os.listdir(dir_path))
-    with open(os.path.join(dir_path, "image_features.csv"), 'a', newline='') as file:
+    with open(os.path.join(r"stored_images", "image_features.csv"), 'a', newline='') as file:
         writer = csv.writer(file)
         for image, hu_moments in zip(image_list, hu_moments_list):
             file_name = "image_{:05d}.png".format(files_in_dir)
             cv2.imwrite(os.path.join(dir_path, file_name), image)
-            writer.writerow([file_name, hu_moments])
+            writer.writerow([os.path.join(dir_path, file_name), hu_moments])
             files_in_dir += 1
 
+
+def parse_cv_image_features():
+    with open(os.path.join(r"stored_images", "image_features.csv"), 'r', newline='') as file:
+        reader = csv.reader(file)
+        data_paths = []
+        features = []
+        for row in reader:
+            data_paths.append(row[0])
+            feature_str = row[1].replace("\n", ",")
+            feature = ast.literal_eval(feature_str)
+            features.append([f[0] for f in feature])
+    return data_paths, np.array(features)
 
 
 def calculate_hue_moments_from_contours(contours):
