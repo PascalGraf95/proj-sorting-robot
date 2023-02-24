@@ -6,6 +6,7 @@ from modules.camera_controller import CameraController
 from modules.gui.output import Ui_MainWindow
 from modules.image_processing import *
 
+
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)

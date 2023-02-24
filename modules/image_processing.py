@@ -102,19 +102,19 @@ def detect_edges(image, t1=100, t2=200):
 
 
 def image_preprocessing(image):
-    mean_vals = get_mean_patch_value(image)
-    correction_factors = get_white_balance_parameters(mean_vals)
-    image = correct_image_white_balance(image, correction_factors)
-    image = equalize_histograms(image, True, 1.4, (8, 8))
-    image = get_image_patch(image, (500, 850), 700)
-    image = cv2.resize(image, (1200, 1200))
+    # mean_vals = get_mean_patch_value(image)
+    # correction_factors = get_white_balance_parameters(mean_vals)
+    # image = correct_image_white_balance(image, correction_factors)
+    # image = equalize_histograms(image, True, 1.4, (8, 8))
+    image = get_image_patch(image, (620, 800), 680)  # 650, 500, 700
+    image = cv2.resize(image, (1000, 1000))
     return image
 
 
 def image_thresholding_stack(image):
-    image = cv2.medianBlur(image, 21)
+    image = cv2.medianBlur(image, 19)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 2)
+    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 33, 2)
     image = cv2.bitwise_not(image)
     kernel = np.ones((3, 3), np.uint8)
     image = cv2.erode(image, kernel, iterations=1)
@@ -123,15 +123,17 @@ def image_thresholding_stack(image):
     return image
 
 
-def extract_and_filter_contours(image):
+def extract_and_filter_contours(image, min_area=1500):
     # Get all contours in image
     contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return []
     # Filter the contours by hierarchy (only contours without parents shall be considered).
     # Also filter by size. Contours too small are not considered
     filtered_contours = []
     for c, h in zip(contours, hierarchy[0]):
         if h[3] == -1:
-            if cv2.contourArea(c) >= 2000:
+            if cv2.contourArea(c) >= min_area:
                 filtered_contours.append(c)
     return filtered_contours
 
@@ -226,14 +228,13 @@ def standardize_images(image_list, xy_size=224):
     return standardized_images
 
 
-def get_objects_in_frame(image):
-    preprocessed_image = image_preprocessing(image)
+def get_objects_in_preprocessed_image(preprocessed_image):
     binary_image = image_thresholding_stack(preprocessed_image)
     contours = extract_and_filter_contours(binary_image)
     rectangles = get_rects_from_contours(contours)
     bounding_boxes = get_bounding_boxes_from_rectangles(rectangles)
     object_images = warp_objects_horizontal(preprocessed_image, rectangles, bounding_boxes)
-    return contours, rectangles, bounding_boxes, object_images, preprocessed_image
+    return contours, rectangles, bounding_boxes, object_images
 
 
 def get_image_features(contours):

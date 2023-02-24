@@ -14,13 +14,13 @@ class KMeansClustering:
     def fit_to_data(self, data):
         if self.num_clusters == 'auto':
             scores = [0, 0]
-            for k in range(2, 10):
+            for k in range(3, 10):
                 kmeans = KMeans(n_clusters=k, n_init='auto')
                 kmeans.fit(data)
                 labels = kmeans.labels_
                 scores.append(silhouette_score(data, labels, metric='euclidean'))
 
-            optimal_cluster_num = np.argmax(scores)
+            optimal_cluster_num = list(range(3,10))[np.argmax(scores)]
             print("Optimal Cluster Number is: {}".format(optimal_cluster_num))
             self.kmeans = KMeans(n_clusters=optimal_cluster_num, n_init='auto')
         self.kmeans.fit(data)

@@ -19,7 +19,7 @@ class CameraController:
         ueye.is_InitCamera(self.h_cam, None)
 
         pParam = ueye.wchar_p()
-        pParam.value = "camera_parameters_default.ini"
+        pParam.value = r"modules\configs\camera_parameters_230224.ini"
         ueye.is_ParameterSet(self.h_cam, ueye.IS_PARAMETERSET_CMD_LOAD_FILE, pParam, 0)
 
         # Set display mode to DIB

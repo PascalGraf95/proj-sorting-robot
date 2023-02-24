@@ -33,11 +33,11 @@ def grab_and_sort_object_at(target_position, target_cluster):
     pass
 
 
-def extract_and_store_objects_with_features(image):
-    contours, rectangles, bounding_boxes, object_images, preprocessed_image = get_objects_in_frame(image)
+def extract_and_store_objects_with_features(preprocessed_image):
+    contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
     feature_list = get_image_features(contours)
     standardize_and_store_images_and_features(object_images, feature_list)
-    return bounding_boxes, preprocessed_image
+    return bounding_boxes
 
 
 def data_collection_phase(cam, interval=1.0):
@@ -46,11 +46,12 @@ def data_collection_phase(cam, interval=1.0):
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
-            bounding_boxes, preprocessed_image = extract_and_store_objects_with_features(image)
+            preprocessed_image = image_preprocessing(image)
+            bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
             last_image_captured_ts = time.time()
 
-            if show_image(canvas_image, wait_for_ms=1):
+            if show_image(canvas_image, wait_for_ms=(interval*1000)//3):
                 break
     print("Finished collecting data!")
 
@@ -64,7 +65,7 @@ def clustering_phase(feature_type="cv_image_features"):
         print("Not implemented yet")
         return
 
-    pca = PCAReduction()
+    pca = PCAReduction(dims=3)
     reduced_features = pca.fit_to_data(image_features)
 
     kmeans = KMeansClustering('auto')
@@ -74,17 +75,29 @@ def clustering_phase(feature_type="cv_image_features"):
     show_cluster_images(image_array, labels)
 
 
+def test_camera_image(cam):
+    while True:
+        image = cam.capture_image()
+        preprocessed_image = image_preprocessing(image)
+        # bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
+        # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+
+        if show_image(preprocessed_image, wait_for_ms=1):
+            break
+
+
 def sorting_phase():
     pass
 
 
-
-
 def main():
-    clustering_phase()
+    # clustering_phase()
     # image_features = parse_cv_image_features()
-    # cam = CameraController()
-    # data_collection_phase(cam)
+    cam = CameraController()
+    cam.capture_image()
+    time.sleep(0.5)
+    # test_camera_image(cam)
+    data_collection_phase(cam, interval=2)
     # cam.close_camera_connection()
 
 
