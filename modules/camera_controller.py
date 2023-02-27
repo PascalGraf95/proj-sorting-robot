@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 
-class CameraController:
+class IDSCameraController:
     def __init__(self):
         # Variables
         self.h_cam = ueye.HIDS(0)  # 0: first available camera;  1-254: The camera with the specified camera ID
@@ -63,8 +63,20 @@ class CameraController:
         ueye.is_ExitCamera(self.h_cam)
 
 
+class WebcamCameraController:
+    def __init__(self, cam_idx=0):
+        self.vid = cv2.VideoCapture(cam_idx)
+
+    def capture_image(self):
+        ret, frame = self.vid.read()
+        return frame
+
+    def close_camera_connection(self):
+        self.vid.release()
+
+
 def main():
-    cam = CameraController()
+    cam = IDSCameraController()
     for i in range(10000):
         frame = cam.capture_image()
 

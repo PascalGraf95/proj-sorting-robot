@@ -132,9 +132,14 @@ def extract_and_filter_contours(image, min_area=1500):
     # Also filter by size. Contours too small are not considered
     filtered_contours = []
     for c, h in zip(contours, hierarchy[0]):
+        # Contour cannot have a parent object
         if h[3] == -1:
+            # Contour needs a certain minimum area
             if cv2.contourArea(c) >= min_area:
-                filtered_contours.append(c)
+                # Contour bounding box cannot touch the image borders
+                x, y, w, h = cv2.boundingRect(c)
+                if x > 0 and y > 0 and x+w < image.shape[1] and y+h < image.shape[0]:
+                    filtered_contours.append(c)
     return filtered_contours
 
 
@@ -191,7 +196,7 @@ def store_images_and_image_features(image_list, hu_moments_list):
             files_in_dir += 1
 
 
-def parse_cv_image_features():
+def parse_cv_image_features(feature_type='all'):
     with open(os.path.join(r"stored_images", "image_features.csv"), 'r', newline='') as file:
         reader = csv.reader(file)
         data_paths = []
@@ -200,17 +205,43 @@ def parse_cv_image_features():
             data_paths.append(row[0])
             feature_str = row[1].replace("\n", ",")
             feature = ast.literal_eval(feature_str)
-            features.append([f[0] for f in feature])
+            # features.append([f[0] for f in feature])
+            features.append(feature)
+
+    if feature_type == 'hu':
+        features = [f[:7] for f in features]
+    elif feature_type == 'area':
+        features = [f[7] for f in features]
+    elif feature_type == 'color':
+        features = [f[8:11] for f in features]
+    elif feature_type == 'color_area':
+        features = [f[7:11] for f in features]
+
     return data_paths, np.array(features)
 
 
-def calculate_hue_moments_from_contours(contours):
+def calculate_hu_moments_from_contours(contours):
     hu_moments_list = []
     for c in contours:
         m = cv2.moments(c)
         hu = cv2.HuMoments(m)
+        hu = [f[0] for f in hu]
         hu_moments_list.append(hu)
     return hu_moments_list
+
+
+def get_rectangle_areas(rectangles):
+    rectangle_area_list = []
+    for rectangle in rectangles:
+        rectangle_area_list.append(rectangle[1][0] * rectangle[1][1])
+    return rectangle_area_list
+
+
+def get_mean_image_color(object_images):
+    mean_color_list = []
+    for image in object_images:
+        mean_color_list.append(np.mean(image, axis=(0, 1)).tolist())
+    return mean_color_list
 
 
 def standardize_images(image_list, xy_size=224):
@@ -237,9 +268,12 @@ def get_objects_in_preprocessed_image(preprocessed_image):
     return contours, rectangles, bounding_boxes, object_images
 
 
-def get_image_features(contours):
-    hu_moments_list = calculate_hue_moments_from_contours(contours)
-    return hu_moments_list
+def get_image_features(object_images, contours, rectangles):
+    hu_moments_list = calculate_hu_moments_from_contours(contours)
+    rectangle_area_list = get_rectangle_areas(rectangles)
+    mean_color_list = get_mean_image_color(object_images)
+    object_feature_list = [[*h, a, *c] for h, a, c in zip(hu_moments_list, rectangle_area_list, mean_color_list)]
+    return object_feature_list
 
 
 def standardize_and_store_images_and_features(object_images, feature_list):

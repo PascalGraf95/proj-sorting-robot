@@ -1,4 +1,4 @@
-from modules.camera_controller import CameraController
+from modules.camera_controller import IDSCameraController, WebcamCameraController
 from modules.image_processing import *
 from modules.dimensionality_reduction import PCAReduction
 from modules.data_handling import *
@@ -35,7 +35,7 @@ def grab_and_sort_object_at(target_position, target_cluster):
 
 def extract_and_store_objects_with_features(preprocessed_image):
     contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
-    feature_list = get_image_features(contours)
+    feature_list = get_image_features(object_images, contours, rectangles)
     standardize_and_store_images_and_features(object_images, feature_list)
     return bounding_boxes
 
@@ -56,11 +56,10 @@ def data_collection_phase(cam, interval=1.0):
     print("Finished collecting data!")
 
 
-def clustering_phase(feature_type="cv_image_features"):
-    if feature_type == "cv_image_features":
-        data_paths, image_features = parse_cv_image_features()
+def clustering_phase(feature_method="cv_image_features", feature_type='all'):
+    if feature_method == "cv_image_features":
+        data_paths, image_features = parse_cv_image_features(feature_type=feature_type)
         image_array = load_images_from_path_list(data_paths)
-
     else:
         print("Not implemented yet")
         return
@@ -81,7 +80,6 @@ def test_camera_image(cam):
         preprocessed_image = image_preprocessing(image)
         # bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
         # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
-
         if show_image(preprocessed_image, wait_for_ms=1):
             break
 
@@ -91,14 +89,13 @@ def sorting_phase():
 
 
 def main():
-    # clustering_phase()
-    # image_features = parse_cv_image_features()
-    cam = CameraController()
+    clustering_phase(feature_type='color')
+    cam = WebcamCameraController()
     cam.capture_image()
     time.sleep(0.5)
     # test_camera_image(cam)
-    data_collection_phase(cam, interval=2)
-    # cam.close_camera_connection()
+    # data_collection_phase(cam, interval=2)
+    cam.close_camera_connection()
 
 
 if __name__ == '__main__':
