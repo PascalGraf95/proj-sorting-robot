@@ -21,10 +21,10 @@ def show_image_once(image):
 
 
 def get_image_patch(image, patch_pos, patch_size):
-    y_min = np.max([patch_pos[0] - patch_size//2, 0]).astype(int)
-    y_max = np.min([patch_pos[0] + patch_size //2, image.shape[0]]).astype(int)
-    x_min = np.max([patch_pos[1] - patch_size//2, 0]).astype(int)
-    x_max = np.min([patch_pos[1] + patch_size //2, image.shape[1]]).astype(int)
+    y_min = np.max([patch_pos[0] - patch_size[0] // 2, 0]).astype(int)
+    y_max = np.min([patch_pos[0] + patch_size[0] // 2, image.shape[0]]).astype(int)
+    x_min = np.max([patch_pos[1] - patch_size[1] // 2, 0]).astype(int)
+    x_max = np.min([patch_pos[1] + patch_size[1] // 2, image.shape[1]]).astype(int)
     return image[y_min:y_max, x_min:x_max].copy()
 
 
@@ -106,8 +106,10 @@ def image_preprocessing(image):
     # correction_factors = get_white_balance_parameters(mean_vals)
     # image = correct_image_white_balance(image, correction_factors)
     # image = equalize_histograms(image, True, 1.4, (8, 8))
-    image = get_image_patch(image, (620, 800), 680)  # 650, 500, 700
-    image = cv2.resize(image, (1000, 1000))
+    patch_size = (680, 1600)
+    image = get_image_patch(image, (620, 800), patch_size)  # 650, 500, 700
+    patch_size_ratio = patch_size[0] / patch_size[1]
+    image = cv2.resize(image, (1000, int(1000 * patch_size_ratio)))
     return image
 
 
@@ -285,7 +287,7 @@ def main():
     image = cv2.imread(r"C:\Users\Drumm\OneDrive\Bilder\220101_diascan\vlcsnap-2022-01-20-16h53m03s560.jpg")
     show_image(image)
 
-    patch = get_image_patch(image, (610, 610), 40)
+    patch = get_image_patch(image, (610, 610), (40, 40))
     show_image(patch)
 
     mean_vals = get_mean_patch_value(patch)

@@ -169,10 +169,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             elif operation_name == "White Balance":
                 if len(image.shape) == 3:
                     if parameters[0]:
-                        image_patch = get_image_patch(image, (parameters[0], parameters[1]), parameters[2])
+                        image_patch = get_image_patch(image, (parameters[0], parameters[1]),
+                                                      (parameters[2], parameters[3]))
                         mean_vals = get_mean_patch_value(image_patch)
-                        self.stack_string += "image_patch = get_image_patch(image, ({}, {}]), {})\n".format(
-                            parameters[0], parameters[1], parameters[2])
+                        self.stack_string += "image_patch = get_image_patch(image, ({}, {}]), ({}, {}))\n".format(
+                            parameters[0], parameters[1], parameters[2], parameters[3])
                         self.stack_string += "mean_vals = get_mean_patch_value(image_patch)\n"
                     else:
                         mean_vals = get_mean_patch_value(image)
@@ -188,11 +189,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                                          "{}, ({}, {}))\n".format(parameters[0], parameters[1], parameters[2],
                                                                   parameters[2])
             elif operation_name == "Crop":
-                image = get_image_patch(image, (parameters[0], parameters[1]), parameters[2])
+                image = get_image_patch(image, (parameters[0], parameters[1]), (parameters[2], parameters[3]))
                 image = cv2.resize(image, (1200, 1200))
-                self.stack_string += "image = get_image_patch(image, ({}, {}), {})\n".format(parameters[0],
-                                                                                             parameters[1],
-                                                                                             parameters[2])
+                self.stack_string += "image = get_image_patch(image, ({}, {}), ({}, {}))\n".format(parameters[0],
+                                                                                                   parameters[1],
+                                                                                                   parameters[2],
+                                                                                                   parameters[3])
                 self.stack_string += "image = cv2.resize(image, (1200, 1200))\n"
             elif operation_name == "Adjust Brightness":
                 if len(image.shape) == 3:
@@ -284,7 +286,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         elif name == "Histogram Equalization":
             self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem("False, 1.8, 8"))
         elif name == "Crop":
-            self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem("500, 500, 300"))
+            self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem("500, 500, 300, 300"))
         elif name == "White Balance":
             self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem("False, 500, 500, 300"))
         elif name == "Adjust Brightness":

@@ -89,11 +89,11 @@ def sorting_phase():
 
 
 def main():
-    clustering_phase(feature_type='color')
-    cam = WebcamCameraController()
+    # clustering_phase(feature_type='color')
+    cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
-    # test_camera_image(cam)
+    test_camera_image(cam)
     # data_collection_phase(cam, interval=2)
     cam.close_camera_connection()
 
