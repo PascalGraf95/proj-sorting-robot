@@ -4,25 +4,61 @@ from cri_dobot.controller import dobotMagicianController
 
 import time
 import numpy as np
+from modules.misc import serial_ports
 
 
 class DoBotRobotController:
-    def __init__(self):
+    def __init__(self, linear_speed=100, angular_speed=100,
+                 base_frame=(0, 0, 0, 0, 0, 0), work_frame=(230, -30, 80, 0, 0, 0)):
+        # Set Base and Work Frame for Robot
+        self.base_frame = base_frame
+        self.work_frame = work_frame
+
+        # Set conveyor height and maneuvering height in work frame coordinates
+        self.conveyor_height = -58
+        self.maneuvering_height = -30
+
         # Find the correct USB port to connect to
+        available_ports = serial_ports()
+        dobot_port = ""
+        for port in available_ports:
+            if 'Silicon Labs CP210x' in port[1]:
+                dobot_port = port[0]
+                break
 
         # Connect and setup DoBot
+        self.robot = AsyncRobot(SyncDobot(dobotMagicianController(port=dobot_port)))
+        # Set TCP, linear speed,  angular speed and coordinate frame
+        # With the suction cup or gripper attachment the corresponding tool center point is (59.7, 0, 0, 0, 0, 0).
+        self.robot.tcp = (59.7, 0, 0, 0, 0, 0)
+        self.robot.linear_speed = linear_speed
+        self.robot.angular_speed = angular_speed
+
+        # Display robot info
+        print("Robot info: {}".format(self.robot.info))
 
         # Initialize Homing process
-        pass
+        self.execute_homing()
+
+        # Move to standby position
+        self.approach_standby_position()
+
+        # Move to maneuvering height
+        self.approach_maneuvering_position()
 
     def get_pose(self):
         # Get and return the current robot pose consisting of the end effector position as well as the particular joint
         # angles
-        pass
+        # Display initial joint angles
+        print("Joint angles: {}".format(self.robot.joint_angles))
+
+        # Display initial pose in work frame
+        print("Pose in work frame: {}".format(self.robot.pose))
+        return self.robot.pose
 
     def disconnect_robot(self):
         # Shutdown and disconnect from the usb port
-        pass
+        self.robot.close()
 
     def stop_command_queue(self):
         # Stop to Execute Command Queue
@@ -39,14 +75,51 @@ class DoBotRobotController:
     def get_current_command_idx(self):
         pass
 
-    def set_homing_position(self, homing_position, homing_r):
-        pass
+    def execute_homing(self, homing_position=(100, -220, 80, 0, 0, 0)):
+        # Set base frame for storing home position
+        self.robot.coord_frame = self.base_frame
 
-    def execute_homing(self):
-        pass
+        # Set home position
+        self.robot.sync_robot.set_home_params(homing_position)
 
-    def approach_target_position(self, target_position, target_r):
-        pass
+        # Perform homing
+        print("Starting homing process...")
+        self.robot.sync_robot.perform_homing()
+        print("Homing finished...")
+
+        # Return to work frame
+        self.robot.coord_frame = self.work_frame
+
+    def return_to_working_frame(self):
+        # Move to origin of work frame
+        print("Moving to origin of work frame ...")
+        self.robot.move_linear((0, 0, 0, 0, 0, 0))
+
+    def approach_standby_position(self):
+        print("Moving to standby position ...")
+        self.robot.move_linear((-20, -30, 60, 0, 0, 0))
+
+    def approach_maneuvering_position(self):
+        print("Moving to working position ...")
+        self.robot.move_linear((0, -30, self.maneuvering_height, 0, 0, 0))
+
+    def approach_at_maneuvering_height(self, target_position=(-20, -30, 0, 0, 0, 0)):
+        # Move to maneuvering height in current pose
+        current_pose = self.get_pose()
+        current_pose_m = list(current_pose)
+        current_pose_m[2] = self.maneuvering_height
+
+        # Move to target position in maneuvering height
+        target_position_m = list(target_position)
+        target_position_m[2] = self.maneuvering_height
+
+        self.robot.move_linear(current_pose_m)
+        self.robot.move_linear(target_position_m)
+        self.robot.move_linear(target_position)
+
+    def approach(self, target_position=(-20, -30, 0, 0, 0, 0)):
+        self.robot.move_linear(target_position)
+
 
     def pick_item(self):
         pass
@@ -169,6 +242,12 @@ def CalcRobotCoord(x_cam, y_cam):
 
 
 def main():
+    robot_controller = DoBotRobotController()
+    robot_controller.approach_at_maneuvering_height((0, 180, -58, 0, 0, 0))
+    robot_controller.approach_at_maneuvering_height((50, 180, -58, 0, 0, 0))
+    # robot_controller.approach_maneuvering_position()
+    robot_controller.disconnect_robot()
+    return
     base_frame = (0, 0, 0, 0, 0, 0)
     # base frame: x->front, y->right, z->up
     work_frame = (260, 0, 80, 0, 0, 0)

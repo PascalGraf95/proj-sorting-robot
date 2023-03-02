@@ -80,6 +80,7 @@ def test_camera_image(cam):
         preprocessed_image = image_preprocessing(image)
         # bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
         # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+
         if show_image(preprocessed_image, wait_for_ms=1):
             break
 
@@ -96,6 +97,11 @@ def main():
     test_camera_image(cam)
     # data_collection_phase(cam, interval=2)
     cam.close_camera_connection()
+
+    # Left Top: 228, 23 --> (-70, -40, -58, 0, 0, 0)
+    # Left Bottom: 230, 357 --> (70, -40, -58, 0, 0, 0)
+    # Right Top: 745, 15 --> (-70, 180, -58, 0, 0, 0)
+    # Right Bottom: 750, 305--> (50, 180, -58, 0, 0, 0)
 
 
 if __name__ == '__main__':

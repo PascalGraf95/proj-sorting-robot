@@ -8,6 +8,8 @@ import ast
 
 def show_image(image, wait_for_ms=0):
     abort = False
+    cv2.namedWindow('Image')
+    cv2.setMouseCallback('Image', print_mouse_position)
     cv2.imshow("Image", image)
     if cv2.waitKey(wait_for_ms) & 0xFF == ord('q'):
         abort = True
@@ -111,6 +113,13 @@ def image_preprocessing(image):
     patch_size_ratio = patch_size[0] / patch_size[1]
     image = cv2.resize(image, (1000, int(1000 * patch_size_ratio)))
     return image
+
+
+def print_mouse_position(event, x, y, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        print("MOUSE X: {}, MOUSE Y: {}".format(x, y))
+        return x, y
+
 
 
 def image_thresholding_stack(image):
