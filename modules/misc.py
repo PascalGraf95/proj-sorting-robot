@@ -20,12 +20,10 @@ def serial_ports():
 
 
 def transform_cam_to_robot(cam_coordinates):
-    print(np.matmul(c2r_matrix, cam_coordinates))
     return np.matmul(c2r_matrix, cam_coordinates)
 
 
 def transform_robot_to_cam(robot_coordinates):
-    print(np.matmul(r2c_matrix, robot_coordinates))
     return np.matmul(r2c_matrix, robot_coordinates)
 
 

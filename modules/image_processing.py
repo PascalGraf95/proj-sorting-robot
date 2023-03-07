@@ -11,7 +11,7 @@ def show_image(image, wait_for_ms=0):
     cv2.namedWindow('Image')
     cv2.setMouseCallback('Image', print_mouse_position)
     cv2.imshow("Image", image)
-    if cv2.waitKey(wait_for_ms) & 0xFF == ord('q'):
+    if cv2.waitKey(int(wait_for_ms)) & 0xFF == ord('q'):
         abort = True
     return abort
 
@@ -121,20 +121,19 @@ def print_mouse_position(event, x, y, flags, param):
         return x, y
 
 
-
 def image_thresholding_stack(image):
-    image = cv2.medianBlur(image, 19)
+    image = cv2.medianBlur(image, 7)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 33, 2)
+    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 25, 3)
     image = cv2.bitwise_not(image)
     kernel = np.ones((3, 3), np.uint8)
     image = cv2.erode(image, kernel, iterations=1)
     kernel = np.ones((3, 3), np.uint8)
-    image = cv2.dilate(image, kernel, iterations=1)
+    image = cv2.dilate(image, kernel, iterations=2)
     return image
 
 
-def extract_and_filter_contours(image, min_area=1500):
+def extract_and_filter_contours(image, min_area=700):
     # Get all contours in image
     contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:

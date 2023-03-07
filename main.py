@@ -3,6 +3,8 @@ from modules.image_processing import *
 from modules.dimensionality_reduction import PCAReduction
 from modules.data_handling import *
 from modules.clustering_algorithms import KMeansClustering
+from modules.robot_controller import DoBotRobotController
+from modules.misc import *
 import time
 import os
 
@@ -38,6 +40,34 @@ def extract_and_store_objects_with_features(preprocessed_image):
     feature_list = get_image_features(object_images, contours, rectangles)
     standardize_and_store_images_and_features(object_images, feature_list)
     return bounding_boxes
+
+
+def get_object_angles_and_filter_by_diameter(rectangles, max_width=100):
+    object_dictionary = {}
+    for idx, rect in enumerate(rectangles):
+        (x, y), (width, height), angle = rect
+        if width < max_width:
+            object_dictionary[idx] = ((x, y), angle)
+    return object_dictionary
+
+
+def check_conveyor_stop_condition(object_dictionary, min_x_val=400):
+    for key, val in object_dictionary.items():
+        if val[0][0] <= min_x_val:
+            return True
+    return False
+
+
+def get_next_object_to_grab(object_dictionary):
+    min_x_val = np.inf
+    next_object_pos = None
+    next_object_ang = None
+    for key, val in object_dictionary.items():
+        if val[0][0] <= min_x_val:
+            min_x_val = val[0][0]
+            next_object_pos = val[0]
+            next_object_ang = val[1]
+    return next_object_pos, next_object_ang
 
 
 def data_collection_phase(cam, interval=1.0):
@@ -78,6 +108,7 @@ def test_camera_image(cam):
     while True:
         image = cam.capture_image()
         preprocessed_image = image_preprocessing(image)
+        preprocessed_image = image_thresholding_stack(preprocessed_image)
         # bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
         # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
 
@@ -85,17 +116,40 @@ def test_camera_image(cam):
             break
 
 
-def sorting_phase():
-    pass
+def sorting_phase(cam, robot, interval=0.5):
+    last_image_captured_ts = time.time()
+    while True:
+        image = cam.capture_image()
+        if time.time() - last_image_captured_ts > interval:
+            preprocessed_image = image_preprocessing(image)
+            contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
+            object_dictionary = get_object_angles_and_filter_by_diameter(rectangles)
+            if check_conveyor_stop_condition(object_dictionary):
+                # Stop the conveyor and grab the most right object
+                position, angle = get_next_object_to_grab(object_dictionary)
+                position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
+                robot.approach_maneuvering_position()
+                robot.approach_at_maneuvering_height((position_r[0], position[1], -58, 0, 0, angle))
+                # robot grab
+                robot.approach_maneuvering_position()
+
+            canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+            last_image_captured_ts = time.time()
+
+            if show_image(canvas_image, wait_for_ms=(interval * 1000) // 3):
+                break
+    print("Finished sorting data!")
 
 
 def main():
-    # clustering_phase(feature_type='color')
+    calc_transformation_matrices()
+    robot = DoBotRobotController()
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
-    test_camera_image(cam)
-    # data_collection_phase(cam, interval=2)
+    sorting_phase(cam, robot)
+    # data_collection_phase(cam, interval=1)
+    # test_camera_image(cam)
     cam.close_camera_connection()
 
     # Left Top: 228, 23 --> (-70, -40, -58, 0, 0, 0)

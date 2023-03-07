@@ -2,7 +2,7 @@ import sys
 from PyQt6 import QtWidgets
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtCore import QTimer
-from modules.camera_controller import CameraController
+from modules.camera_controller import IDSCameraController
 from modules.gui.output import Ui_MainWindow
 from modules.image_processing import *
 
@@ -13,7 +13,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         # Setup Live Camera Image
-        self.cam = CameraController()
+        self.cam = IDSCameraController()
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_image)
         self.timer.start(50)
@@ -190,7 +190,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                                                                   parameters[2])
             elif operation_name == "Crop":
                 image = get_image_patch(image, (parameters[0], parameters[1]), (parameters[2], parameters[3]))
-                image = cv2.resize(image, (1200, 1200))
+                patch_size_ratio = parameters[2] / parameters[3]
+                image = cv2.resize(image, (1000, int(1000 * patch_size_ratio)))
                 self.stack_string += "image = get_image_patch(image, ({}, {}), ({}, {}))\n".format(parameters[0],
                                                                                                    parameters[1],
                                                                                                    parameters[2],

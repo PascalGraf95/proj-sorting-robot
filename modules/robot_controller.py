@@ -25,6 +25,8 @@ class DoBotRobotController:
             if 'Silicon Labs CP210x' in port[1]:
                 dobot_port = port[0]
                 break
+        if dobot_port == "":
+            raise ConnectionError("[ERROR] DoBot port could not be found!")
 
         # Connect and setup DoBot
         self.robot = AsyncRobot(SyncDobot(dobotMagicianController(port=dobot_port)))
@@ -34,17 +36,11 @@ class DoBotRobotController:
         self.robot.linear_speed = linear_speed
         self.robot.angular_speed = angular_speed
 
-        # Display robot info
-        print("Robot info: {}".format(self.robot.info))
-
         # Initialize Homing process
         self.execute_homing()
 
         # Move to standby position
         self.approach_standby_position()
-
-        # Move to maneuvering height
-        self.approach_maneuvering_position()
 
     def get_pose(self):
         # Get and return the current robot pose consisting of the end effector position as well as the particular joint
@@ -55,6 +51,9 @@ class DoBotRobotController:
         # Display initial pose in work frame
         print("Pose in work frame: {}".format(self.robot.pose))
         return self.robot.pose
+
+    def get_joint_angles(self):
+        return self.robot.joint_angles
 
     def disconnect_robot(self):
         # Shutdown and disconnect from the usb port
@@ -96,12 +95,20 @@ class DoBotRobotController:
         self.robot.move_linear((0, 0, 0, 0, 0, 0))
 
     def approach_standby_position(self):
+        robot_joint_angles = self.get_joint_angles()
         print("Moving to standby position ...")
-        self.robot.move_linear((-20, -30, 60, 0, 0, 0))
+        if robot_joint_angles[0] < 0:
+            self.robot.move_linear((-20, -30, 60, 0, 0, 0))
+        else:
+            self.robot.move_linear((-20, 30, 60, 0, 0, 0))
 
     def approach_maneuvering_position(self):
+        robot_joint_angles = self.get_joint_angles()
         print("Moving to working position ...")
-        self.robot.move_linear((0, -30, self.maneuvering_height, 0, 0, 0))
+        if robot_joint_angles[0] < 0:
+            self.robot.move_linear((0, -30, self.maneuvering_height, 0, 0, 0))
+        else:
+            self.robot.move_linear((0, 30, self.maneuvering_height, 0, 0, 0))
 
     def approach_at_maneuvering_height(self, target_position=(-20, -30, 0, 0, 0, 0)):
         # Move to maneuvering height in current pose
@@ -147,107 +154,18 @@ class DoBotRobotController:
             print("[WARNING] There is no storage with number {}".format(n_storage))
             x_storage, y_storage, z_storage, r_storage = None, None, None, None
 
-        self.approach_target_position((x_storage, y_storage, z_storage), r_storage)
+        self.approach_at_maneuvering_height((x_storage, y_storage, z_storage), r_storage)
         self.release_item()
-
-
-
-# Calibration funktion to calibrate the roboter- belonging to camera- coordinates
-def CalibrateCoordinates(obj):
-    insertNrOneValue = False
-    CoordinatesFlag = False
-    x_data = []
-    y_data = []
-    print('[INFO] Start calibrating the coordinates for the Dobot')
-
-    while True:
-        frame = obj.getimage()
-
-        (medianBlurThresh, image) = ImPr.getThresh(frame)
-        output = image.copy()
-
-        contours = cv2.findContours(medianBlurThresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
-        contours = imutils.grab_contours(contours)
-
-        nContour = 0
-        while nContour < len(contours):
-            rect = cv2.minAreaRect(contours[nContour])
-            (x, y), (width, height), angle = rect
-
-            cv2.putText(output, '#{}'.format(nContour + 1), (int(x) + 10, int(y) + 10),
-                        fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 255, 0))
-            cv2.circle(output, center=(int(x), int(y)), radius=6, color=(255, 20, 147), thickness=-1)
-            nContour = nContour + 1
-
-            if insertNrOneValue:
-                print('[INFO] Drive the Dobot manually to the center of Item #{}'.format(nContour))
-                print('[INFO] Press "q" to confirm the input'.format(nContour))
-                x_data.append(int(input('Input the x Roboter coordinates of Item #{}:'.format(nContour))))
-                y_data.append(int(input('Input the y Roboter coordinates of Item #{}:'.format(nContour))))
-                if nContour == 2:
-                    insertNrOneValue = False
-                    CoordinatesFlag = True
-
-        cv2.rectangle(output, Setup.CalibrationAOI[0], Setup.CalibrationAOI[1], color=(255, 255, 0), thickness=2)
-        # cv2.imwrite('data/Calibrate/Calibrate.jpg', output)
-        cv2.imshow('output', output)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            insertNrOneValue = True
-
-        if CoordinatesFlag:
-            print(x_data[1])
-            print(x_data[0])
-            Coordinates_Robot = (x_data[1], x_data[0], y_data[1], y_data[0])
-
-            pickle_out = open(Setup.Cal_Coordinates_Robot_Path, "wb")
-            pickle.dump(Coordinates_Robot, pickle_out)
-            pickle_out.close()
-
-            [(x_cam_min, y_cam_min), (x_cam_max, y_cam_max)] = Setup.CalibrationAOI
-            Coordinates_Camera = (x_cam_min, x_cam_max, y_cam_min, y_cam_max)
-            pickle_out = open(Setup.Cal_Coordinates_Camera_Path, "wb")
-            pickle.dump(Coordinates_Camera, pickle_out)
-            pickle_out.close()
-
-            print('[INFO] Disconnect Dobot from Dobot Studio!')
-            print('[INFO] All coordinates set for the Dobot')
-            cv2.destroyAllWindows()
-            break
-
-
-# convert between camera and conveyor coordinates
-def CalcRobotCoord(x_cam, y_cam):
-    if os.path.exists(Setup.Cal_Coordinates_Camera_Path) and os.path.exists(Setup.Cal_Coordinates_Robot_Path):
-        # Load Coordinates from calibration
-        Coordinates_Camera = pickle.load(open(Setup.Cal_Coordinates_Camera_Path, "rb"))
-        (x_cam_min, x_cam_max, y_cam_min, y_cam_max) = Coordinates_Camera
-
-        Coordinates_Robot = pickle.load(open(Setup.Cal_Coordinates_Robot_Path, "rb"))
-        (x_rob_min, x_rob_max, y_rob_min, y_rob_max) = Coordinates_Robot
-
-        # Calculate x-coordinate for the robot
-        x_rob = ((x_rob_max - x_rob_min) / (y_cam_max - y_cam_min)) * (y_cam - y_cam_min)
-        x_rob = x_rob + x_rob_min
-
-        # Calculate y-coordinate for the robot
-        y_rob = ((y_rob_max - y_rob_min) / (x_cam_max - x_cam_min)) * (x_cam - x_cam_min)
-        y_rob = y_rob + y_rob_min
-
-        return x_rob, y_rob
-
-    else:
-        print('[Warning] The Coordinates are not calibrated')
-        print('[INFO] Follow the instructions of the README.md')
-
 
 def main():
     robot_controller = DoBotRobotController()
-    robot_controller.approach_at_maneuvering_height((0, 180, -58, 0, 0, 0))
-    robot_controller.approach_at_maneuvering_height((50, 180, -58, 0, 0, 0))
+    # robot_controller.approach_at_maneuvering_height((0, 180, -58, 0, 0, 0))
+    # robot_controller.approach_at_maneuvering_height((50, 180, -58, 0, 0, 0))
     # robot_controller.approach_maneuvering_position()
     robot_controller.disconnect_robot()
     return
+
+    # region Example
     base_frame = (0, 0, 0, 0, 0, 0)
     # base frame: x->front, y->right, z->up
     work_frame = (260, 0, 80, 0, 0, 0)
@@ -466,6 +384,7 @@ def main():
 
 
         print("Final pose in work frame: {}".format(robot.pose))
+        # endregion
 
 
 if __name__ == '__main__':
