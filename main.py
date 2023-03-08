@@ -5,6 +5,7 @@ from modules.data_handling import *
 from modules.clustering_algorithms import KMeansClustering
 from modules.robot_controller import DoBotRobotController
 from modules.misc import *
+import numpy as np
 import time
 import os
 
@@ -31,8 +32,8 @@ def stop_conveyor_belt():
     pass
 
 
-def grab_and_sort_object_at(target_position, target_cluster):
-    pass
+def conveyor_belt_running():
+    return False
 
 
 def extract_and_store_objects_with_features(preprocessed_image):
@@ -51,9 +52,21 @@ def get_object_angles_and_filter_by_diameter(rectangles, max_width=100):
     return object_dictionary
 
 
-def check_conveyor_stop_condition(object_dictionary, min_x_val=400):
+def check_conveyor_force_stop_condition(object_dictionary, robot, min_x_val=300):
+    if robot.is_in_maneuvering_position():
+        return True
     for key, val in object_dictionary.items():
         if val[0][0] <= min_x_val:
+            return True
+    return False
+
+
+def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=800):
+    if not robot.is_in_standby_position():
+        return False
+
+    for key, val in object_dictionary.items():
+        if val[0][0] <= max_x_val:
             return True
     return False
 
@@ -117,21 +130,39 @@ def test_camera_image(cam):
 
 
 def sorting_phase(cam, robot, interval=0.5):
+    # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
+            # Preprocess image and extract objects
             preprocessed_image = image_preprocessing(image)
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
+            # Filter object by maximum diameter (no objects to wide to grab), then get center position and angle
             object_dictionary = get_object_angles_and_filter_by_diameter(rectangles)
-            if check_conveyor_stop_condition(object_dictionary):
-                # Stop the conveyor and grab the most right object
+            # Stop the conveyor if an object is inside picking range and if the robot is ready to pick it up.
+            # Force stop if the robot currently is in maneuvering position or when an object is about to leave
+            # the camera frame.
+            if check_conveyor_force_stop_condition(object_dictionary, robot) or \
+                    check_conveyor_soft_stop_condition(object_dictionary, robot):
+                stop_conveyor_belt()
+            else:
+                start_conveyor_belt()
+
+            if not conveyor_belt_running() and robot.is_in_standby_position():
+                # Get the first object which is the one furthest to the left on the conveyor.
                 position, angle = get_next_object_to_grab(object_dictionary)
-                position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
+                # Transform its position into the robot coordinate system.
+                position_r = transform_cam_to_robot(np.array([position[1], position[0], 1]))
+                # Approach its position and pick it up.
                 robot.approach_maneuvering_position()
-                robot.approach_at_maneuvering_height((position_r[0], position[1], -58, 0, 0, angle))
-                # robot grab
-                robot.approach_maneuvering_position()
+                robot.approach_at_maneuvering_height((position_r[0], position[1], 0, 0, 0, angle))
+                robot.pick_item()
+                # Then move to the respective storage and release it.
+                robot.approach_storage(np.random.randint(0, 5))
+                robot.release_item()
+                # Finally return to the robot standby position.
+                robot.approach_standby_position()
 
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
             last_image_captured_ts = time.time()

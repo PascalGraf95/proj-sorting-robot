@@ -127,9 +127,14 @@ class DoBotRobotController:
     def approach(self, target_position=(-20, -30, 0, 0, 0, 0)):
         self.robot.move_linear(target_position)
 
-
     def pick_item(self):
-        pass
+        # Move to maneuvering height in current pose
+        current_pose = self.get_pose()
+        current_pose_picking = list(current_pose)
+        current_pose_picking[2] = self.conveyor_height
+
+        self.robot.move_linear(current_pose_picking)
+        self.robot.move_linear(current_pose)
 
     def release_item(self):
         pass
@@ -138,17 +143,17 @@ class DoBotRobotController:
         pass
 
     def approach_storage(self, n_storage):
-        if n_storage == 1:
+        if n_storage == 0:
             [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_1
-        elif n_storage == 2:
+        elif n_storage == 1:
             [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_2
-        elif n_storage == 3:
+        elif n_storage == 2:
             [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_3
-        elif n_storage == 4:
+        elif n_storage == 3:
             [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_4
-        elif n_storage == 5:
+        elif n_storage == 4:
             [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_5
-        elif n_storage == 6:
+        elif n_storage == 5:
             [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_6
         else:
             print("[WARNING] There is no storage with number {}".format(n_storage))
