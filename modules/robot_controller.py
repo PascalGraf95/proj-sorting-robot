@@ -1,6 +1,7 @@
-from cri.robot import AsyncRobot
-from cri_dobot.robot import SyncDobot
-from cri_dobot.controller import dobotMagicianController
+from modules.cri.robot import AsyncRobot
+from modules.cri_dobot.robot import SyncDobot
+from modules.cri_dobot.controller import dobotMagicianController
+from cri_dobot.dobotMagician.dll_files import DobotDllType as dType
 
 import time
 import numpy as np
@@ -17,6 +18,7 @@ class DoBotRobotController:
         # Set conveyor height and maneuvering height in work frame coordinates
         self.conveyor_height = -58
         self.maneuvering_height = -30
+        self.standby_height = 60
 
         # Find the correct USB port to connect to
         available_ports = serial_ports()
@@ -38,18 +40,14 @@ class DoBotRobotController:
 
         # Initialize Homing process
         self.execute_homing()
+        # Release Item
+        self.robot.release()
 
         # Move to standby position
         self.approach_standby_position()
 
     def get_pose(self):
-        # Get and return the current robot pose consisting of the end effector position as well as the particular joint
-        # angles
-        # Display initial joint angles
-        print("Joint angles: {}".format(self.robot.joint_angles))
-
-        # Display initial pose in work frame
-        print("Pose in work frame: {}".format(self.robot.pose))
+        # Get and return the current robot pose consisting of the end effector position
         return self.robot.pose
 
     def get_joint_angles(self):
@@ -94,17 +92,35 @@ class DoBotRobotController:
         print("Moving to origin of work frame ...")
         self.robot.move_linear((0, 0, 0, 0, 0, 0))
 
+    def is_in_standby_position(self):
+        # Calculate the difference between the current pose and the standby_position.
+        # If it is small enough return True
+        current_pose = self.get_pose()
+        current_pose = np.array(current_pose)
+        positional_difference = ((current_pose[:3] - np.array((-20, -30, self.standby_height)))**2).mean()
+        if positional_difference < 10:
+            return True
+        return False
+
     def approach_standby_position(self):
         robot_joint_angles = self.get_joint_angles()
-        print("Moving to standby position ...")
         if robot_joint_angles[0] < 0:
-            self.robot.move_linear((-20, -30, 60, 0, 0, 0))
+            self.robot.move_linear((-20, -30, self.standby_height, 0, 0, 0))
         else:
-            self.robot.move_linear((-20, 30, 60, 0, 0, 0))
+            self.robot.move_linear((-20, 30, self.standby_height, 0, 0, 0))
+
+    def is_in_maneuvering_position(self):
+        current_pose = self.get_pose()
+        current_joint_angles = self.get_joint_angles()
+
+        # If the TCP is lower than standby height and the angle of the first joint is smaller than 25° then the robot
+        # is visible in the camera image, thus we return true.
+        if current_pose[2] < self.standby_height and np.abs(current_joint_angles[0]) < 25:
+            return True
+        return False
 
     def approach_maneuvering_position(self):
         robot_joint_angles = self.get_joint_angles()
-        print("Moving to working position ...")
         if robot_joint_angles[0] < 0:
             self.robot.move_linear((0, -30, self.maneuvering_height, 0, 0, 0))
         else:
@@ -134,17 +150,26 @@ class DoBotRobotController:
         current_pose_picking[2] = self.conveyor_height
 
         self.robot.move_linear(current_pose_picking)
+        self.robot.grab()
         self.robot.move_linear(current_pose)
 
     def release_item(self):
-        pass
+        self.robot.release()
 
     def set_robot_velocity(self, velocity=100, acceleration=100):
         pass
 
     def approach_storage(self, n_storage):
+        current_pose = self.get_pose()
+        if n_storage < 3:
+            self.robot.move_linear((0, -200, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-200, 200, self.maneuvering_height, 0, 0, 0))
+        else:
+            self.robot.move_linear((0, 200, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-200, 200, self.maneuvering_height, 0, 0, 0))
+        """
         if n_storage == 0:
-            [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_1
+            [x_storage, y_storage, z_storage, r_storage] = ()
         elif n_storage == 1:
             [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_2
         elif n_storage == 2:
@@ -160,6 +185,7 @@ class DoBotRobotController:
             x_storage, y_storage, z_storage, r_storage = None, None, None, None
 
         self.approach_at_maneuvering_height((x_storage, y_storage, z_storage), r_storage)
+        """
         self.release_item()
 
 def main():
@@ -167,6 +193,8 @@ def main():
     # robot_controller.approach_at_maneuvering_height((0, 180, -58, 0, 0, 0))
     # robot_controller.approach_at_maneuvering_height((50, 180, -58, 0, 0, 0))
     # robot_controller.approach_maneuvering_position()
+    print(robot_controller.get_joint_angles())
+    robot_controller.pick_item()
     robot_controller.disconnect_robot()
     return
 

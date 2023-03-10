@@ -4,6 +4,7 @@ from modules.dimensionality_reduction import PCAReduction
 from modules.data_handling import *
 from modules.clustering_algorithms import KMeansClustering
 from modules.robot_controller import DoBotRobotController
+from modules.conveyor_belt import ConveyorBelt
 from modules.misc import *
 import numpy as np
 import time
@@ -24,18 +25,6 @@ def optimize_images_and_store(input_path, output_path):
         print("Converted Image {} from {}".format(idx+1, num_of_images))
 
 
-def start_conveyor_belt():
-    pass
-
-
-def stop_conveyor_belt():
-    pass
-
-
-def conveyor_belt_running():
-    return False
-
-
 def extract_and_store_objects_with_features(preprocessed_image):
     contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
     feature_list = get_image_features(object_images, contours, rectangles)
@@ -43,7 +32,7 @@ def extract_and_store_objects_with_features(preprocessed_image):
     return bounding_boxes
 
 
-def get_object_angles_and_filter_by_diameter(rectangles, max_width=100):
+def get_object_angles_and_filter_by_diameter(rectangles, max_width=1000):
     object_dictionary = {}
     for idx, rect in enumerate(rectangles):
         (x, y), (width, height), angle = rect
@@ -61,11 +50,12 @@ def check_conveyor_force_stop_condition(object_dictionary, robot, min_x_val=300)
     return False
 
 
-def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=800):
+def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=600):
     if not robot.is_in_standby_position():
         return False
 
     for key, val in object_dictionary.items():
+        print("val: {}, max_x_val: {}".format(val[0][0], max_x_val))
         if val[0][0] <= max_x_val:
             return True
     return False
@@ -129,7 +119,7 @@ def test_camera_image(cam):
             break
 
 
-def sorting_phase(cam, robot, interval=0.5):
+def sorting_phase(cam, robot, conveyor_belt, interval=0.5):
     # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
     while True:
@@ -140,23 +130,26 @@ def sorting_phase(cam, robot, interval=0.5):
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
             # Filter object by maximum diameter (no objects to wide to grab), then get center position and angle
             object_dictionary = get_object_angles_and_filter_by_diameter(rectangles)
+            print("OBJECT DICT LEN", len(object_dictionary))
             # Stop the conveyor if an object is inside picking range and if the robot is ready to pick it up.
             # Force stop if the robot currently is in maneuvering position or when an object is about to leave
             # the camera frame.
             if check_conveyor_force_stop_condition(object_dictionary, robot) or \
                     check_conveyor_soft_stop_condition(object_dictionary, robot):
-                stop_conveyor_belt()
+                conveyor_belt.stop()
             else:
-                start_conveyor_belt()
+                if not conveyor_belt.is_running():
+                    conveyor_belt.start()
 
-            if not conveyor_belt_running() and robot.is_in_standby_position():
+            if not conveyor_belt.is_running() and robot.is_in_standby_position():
                 # Get the first object which is the one furthest to the left on the conveyor.
                 position, angle = get_next_object_to_grab(object_dictionary)
                 # Transform its position into the robot coordinate system.
-                position_r = transform_cam_to_robot(np.array([position[1], position[0], 1]))
+                position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
+                print(position, angle, position_r)
                 # Approach its position and pick it up.
                 robot.approach_maneuvering_position()
-                robot.approach_at_maneuvering_height((position_r[0], position[1], 0, 0, 0, angle))
+                robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
                 robot.pick_item()
                 # Then move to the respective storage and release it.
                 robot.approach_storage(np.random.randint(0, 5))
@@ -175,12 +168,15 @@ def sorting_phase(cam, robot, interval=0.5):
 def main():
     calc_transformation_matrices()
     robot = DoBotRobotController()
+    conveyor_belt = ConveyorBelt()
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
-    sorting_phase(cam, robot)
+    sorting_phase(cam, robot, conveyor_belt)
     # data_collection_phase(cam, interval=1)
     # test_camera_image(cam)
+    robot.disconnect_robot()
+    conveyor_belt.disconnect()
     cam.close_camera_connection()
 
     # Left Top: 228, 23 --> (-70, -40, -58, 0, 0, 0)
