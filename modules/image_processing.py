@@ -222,10 +222,16 @@ def parse_cv_image_features(feature_type='all'):
         features = [f[:7] for f in features]
     elif feature_type == 'area':
         features = [f[7] for f in features]
+    elif feature_type == 'aspect':
+        features = [f[8] for f in features]
     elif feature_type == 'color':
-        features = [f[8:11] for f in features]
+        features = [f[9:12] for f in features]
     elif feature_type == 'color_area':
-        features = [f[7:11] for f in features]
+        features = [f[7:12] for f in features]
+    elif feature_type == 'area_aspect':
+        features = [f[7:9] for f in features]
+    elif feature_type == 'area_aspect_color':
+        features = [f[7:12] for f in features]
 
     return data_paths, np.array(features)
 
@@ -246,6 +252,15 @@ def get_rectangle_areas(rectangles):
         rectangle_area_list.append(rectangle[1][0] * rectangle[1][1])
     return rectangle_area_list
 
+
+def get_rectangle_aspect_ratios(rectangles):
+    rectangle_aspect_list = []
+    for rectangle in rectangles:
+        if rectangle[1][0] > rectangle[1][1]:
+            rectangle_aspect_list.append(rectangle[1][0] / rectangle[1][1])
+        else:
+            rectangle_aspect_list.append(rectangle[1][1] / rectangle[1][0])
+    return rectangle_aspect_list
 
 def get_mean_image_color(object_images):
     mean_color_list = []
@@ -281,8 +296,12 @@ def get_objects_in_preprocessed_image(preprocessed_image):
 def get_image_features(object_images, contours, rectangles):
     hu_moments_list = calculate_hu_moments_from_contours(contours)
     rectangle_area_list = get_rectangle_areas(rectangles)
+    rectangle_aspect_list = get_rectangle_aspect_ratios(rectangles)
     mean_color_list = get_mean_image_color(object_images)
-    object_feature_list = [[*h, a, *c] for h, a, c in zip(hu_moments_list, rectangle_area_list, mean_color_list)]
+
+    object_feature_list = [[*h, a, asp, *c] for h, a, asp, c in zip(hu_moments_list, rectangle_area_list,
+                                                                    rectangle_aspect_list,
+                                                                    mean_color_list)]
     return object_feature_list
 
 

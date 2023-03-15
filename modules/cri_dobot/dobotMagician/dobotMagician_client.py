@@ -28,7 +28,7 @@ CON_STR = {
 
 # Workspace limits (gross error catching)
 max_x_lim = 350  # mm in x axis (base frame)
-min_x_lim = 0
+min_x_lim = -200
 max_y_lim = 350
 min_y_lim = -350
 max_z_lim = 200
@@ -494,9 +494,9 @@ class dobotMagicianClient:
         last_index = target[0]
         dType.SetQueuedCmdStartExec(self.api)
         while last_index > dType.GetQueuedCmdCurrentIndex(self.api)[0]:
-            dType.dSleep(500)
+            dType.dSleep(300)
         dType.SetQueuedCmdStopExec(self.api)
-        dType.dSleep(800)
+        dType.dSleep(300)
         return last_index
 
     def grab(self):
@@ -504,10 +504,10 @@ class dobotMagicianClient:
         last_index = target[0]
         dType.SetQueuedCmdStartExec(self.api)
         while last_index > dType.GetQueuedCmdCurrentIndex(self.api)[0]:
-            dType.dSleep(500)
+            dType.dSleep(300)
         dType.SetQueuedCmdStopExec(self.api)
-        dType.dSleep(800)
-        last_index = self.turn_off_tcp()
+        dType.dSleep(300)
+        # last_index = self.turn_off_tcp()
 
         return last_index
 
@@ -516,9 +516,9 @@ class dobotMagicianClient:
         last_index = target[0]
         dType.SetQueuedCmdStartExec(self.api)
         while last_index > dType.GetQueuedCmdCurrentIndex(self.api)[0]:
-            dType.dSleep(500)
+            dType.dSleep(300)
         dType.SetQueuedCmdStopExec(self.api)
-        dType.dSleep(800)
+        dType.dSleep(300)
         last_index = self.turn_off_tcp()
         return last_index
 

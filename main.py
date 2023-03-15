@@ -36,6 +36,8 @@ def get_object_angles_and_filter_by_diameter(rectangles, max_width=1000):
     object_dictionary = {}
     for idx, rect in enumerate(rectangles):
         (x, y), (width, height), angle = rect
+        if height > width:
+            angle -= 90
         if width < max_width:
             object_dictionary[idx] = ((x, y), angle)
     return object_dictionary
@@ -55,7 +57,6 @@ def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=600):
         return False
 
     for key, val in object_dictionary.items():
-        print("val: {}, max_x_val: {}".format(val[0][0], max_x_val))
         if val[0][0] <= max_x_val:
             return True
     return False
@@ -97,7 +98,7 @@ def clustering_phase(feature_method="cv_image_features", feature_type='all'):
         print("Not implemented yet")
         return
 
-    pca = PCAReduction(dims=3)
+    pca = PCAReduction(dims=2)
     reduced_features = pca.fit_to_data(image_features)
 
     kmeans = KMeansClustering('auto')
@@ -111,7 +112,7 @@ def test_camera_image(cam):
     while True:
         image = cam.capture_image()
         preprocessed_image = image_preprocessing(image)
-        preprocessed_image = image_thresholding_stack(preprocessed_image)
+        # preprocessed_image = image_thresholding_stack(preprocessed_image)
         # bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
         # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
 
@@ -130,7 +131,6 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5):
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
             # Filter object by maximum diameter (no objects to wide to grab), then get center position and angle
             object_dictionary = get_object_angles_and_filter_by_diameter(rectangles)
-            print("OBJECT DICT LEN", len(object_dictionary))
             # Stop the conveyor if an object is inside picking range and if the robot is ready to pick it up.
             # Force stop if the robot currently is in maneuvering position or when an object is about to leave
             # the camera frame.
@@ -146,13 +146,12 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5):
                 position, angle = get_next_object_to_grab(object_dictionary)
                 # Transform its position into the robot coordinate system.
                 position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
-                print(position, angle, position_r)
                 # Approach its position and pick it up.
                 robot.approach_maneuvering_position()
                 robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
                 robot.pick_item()
                 # Then move to the respective storage and release it.
-                robot.approach_storage(np.random.randint(0, 5))
+                robot.approach_storage(np.random.randint(0, 6))
                 robot.release_item()
                 # Finally return to the robot standby position.
                 robot.approach_standby_position()
@@ -165,16 +164,29 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5):
     print("Finished sorting data!")
 
 
-def main():
-    calc_transformation_matrices()
+def calibrate_robot():
     robot = DoBotRobotController()
-    conveyor_belt = ConveyorBelt()
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
-    sorting_phase(cam, robot, conveyor_belt)
+    while True:
+        robot.test_robot()
+        test_camera_image(cam)
+
+
+def main():
+    calc_transformation_matrices()
+    # robot = DoBotRobotController()
+    # conveyor_belt = ConveyorBelt()
+    cam = IDSCameraController()
+    cam.capture_image()
+    time.sleep(0.5)
+
+    # sorting_phase(cam, robot, conveyor_belt)
     # data_collection_phase(cam, interval=1)
+    clustering_phase(feature_type="color")
     # test_camera_image(cam)
+    conveyor_belt.stop()
     robot.disconnect_robot()
     conveyor_belt.disconnect()
     cam.close_camera_connection()
@@ -187,4 +199,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # ToDo: Extract object information on sorting
+    # ToDo: Extract aspect ratio and mean color
+    # ToDo: Implement deep feature extractor (e.g. patch-core)
+    # ToDo: Async Robot
+    # ToDo: Actual Storage Positions
+    # ToDo: Optimize Arcs
 

@@ -9,15 +9,15 @@ from modules.misc import serial_ports
 
 
 class DoBotRobotController:
-    def __init__(self, linear_speed=100, angular_speed=100,
-                 base_frame=(0, 0, 0, 0, 0, 0), work_frame=(230, -30, 80, 0, 0, 0)):
+    def __init__(self, linear_speed=250, angular_speed=250,
+                 base_frame=(0, 0, 0, 0, 0, 0), work_frame=(230, 0, 80, 0, 0, 0)):
         # Set Base and Work Frame for Robot
         self.base_frame = base_frame
         self.work_frame = work_frame
 
         # Set conveyor height and maneuvering height in work frame coordinates
         self.conveyor_height = -58
-        self.maneuvering_height = -30
+        self.maneuvering_height = -20
         self.standby_height = 60
 
         # Find the correct USB port to connect to
@@ -57,21 +57,6 @@ class DoBotRobotController:
         # Shutdown and disconnect from the usb port
         self.robot.close()
 
-    def stop_command_queue(self):
-        # Stop to Execute Command Queue
-        pass
-
-    def clear_command_queue(self):
-        # Remove all tasks from the queue
-        pass
-
-    def execute_command_queue(self):
-        # Execute all commands in queue
-        pass
-
-    def get_current_command_idx(self):
-        pass
-
     def execute_homing(self, homing_position=(100, -220, 80, 0, 0, 0)):
         # Set base frame for storing home position
         self.robot.coord_frame = self.base_frame
@@ -97,17 +82,21 @@ class DoBotRobotController:
         # If it is small enough return True
         current_pose = self.get_pose()
         current_pose = np.array(current_pose)
-        positional_difference = ((current_pose[:3] - np.array((-20, -30, self.standby_height)))**2).mean()
-        if positional_difference < 10:
+        positional_difference_left = ((current_pose[:3] - np.array((-20, -60, self.standby_height)))**2).mean()
+        if positional_difference_left < 10:
             return True
         return False
 
     def approach_standby_position(self):
         robot_joint_angles = self.get_joint_angles()
-        if robot_joint_angles[0] < 0:
-            self.robot.move_linear((-20, -30, self.standby_height, 0, 0, 0))
-        else:
-            self.robot.move_linear((-20, 30, self.standby_height, 0, 0, 0))
+        robot_pose = self.get_pose()
+        if robot_pose[0] < -100:
+            if robot_pose[1] > 0:
+                self.robot.move_linear((-20, 190, self.maneuvering_height, 0, 0, 0))
+            else:
+                self.robot.move_linear((-20, -190, self.maneuvering_height, 0, 0, 0))
+            self.approach_maneuvering_position()
+        self.robot.move_linear((-20, -60, self.standby_height, 0, 0, 0))
 
     def is_in_maneuvering_position(self):
         current_pose = self.get_pose()
@@ -120,13 +109,9 @@ class DoBotRobotController:
         return False
 
     def approach_maneuvering_position(self):
-        robot_joint_angles = self.get_joint_angles()
-        if robot_joint_angles[0] < 0:
-            self.robot.move_linear((0, -30, self.maneuvering_height, 0, 0, 0))
-        else:
-            self.robot.move_linear((0, 30, self.maneuvering_height, 0, 0, 0))
+        self.robot.move_linear((0, -60, self.maneuvering_height, 0, 0, 0))
 
-    def approach_at_maneuvering_height(self, target_position=(-20, -30, 0, 0, 0, 0)):
+    def approach_at_maneuvering_height(self, target_position=(-20, -60, 0, 0, 0, 0)):
         # Move to maneuvering height in current pose
         current_pose = self.get_pose()
         current_pose_m = list(current_pose)
@@ -140,7 +125,7 @@ class DoBotRobotController:
         self.robot.move_linear(target_position_m)
         self.robot.move_linear(target_position)
 
-    def approach(self, target_position=(-20, -30, 0, 0, 0, 0)):
+    def approach(self, target_position=(-20, -60, 0, 0, 0, 0)):
         self.robot.move_linear(target_position)
 
     def pick_item(self):
@@ -161,12 +146,15 @@ class DoBotRobotController:
 
     def approach_storage(self, n_storage):
         current_pose = self.get_pose()
+        print("Approach Storage: ", n_storage)
         if n_storage < 3:
-            self.robot.move_linear((0, -200, self.maneuvering_height, 0, 0, 0))
-            self.robot.move_linear((-200, 200, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-20, -190, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-100, -190, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-280, -230, self.maneuvering_height, 0, 0, 0))
         else:
-            self.robot.move_linear((0, 200, self.maneuvering_height, 0, 0, 0))
-            self.robot.move_linear((-200, 200, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-20, 190, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-100, 190, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear((-280, 230, self.maneuvering_height, 0, 0, 0))
         """
         if n_storage == 0:
             [x_storage, y_storage, z_storage, r_storage] = ()
@@ -190,12 +178,18 @@ class DoBotRobotController:
 
     def test_robot(self):
         while True:
+            print("Pose Before: ", self.robot.pose)
             x = input("Enter X Position: ")
             y = input("Enter Y Position: ")
             z = input("Enter Z Position: ")
-
+            if x == "":
+                x = self.robot.pose[0]
+            if y == "":
+                y = self.robot.pose[1]
+            if z == "":
+                z = self.robot.pose[2]
             self.robot.move_linear((float(x), float(y), float(z), 0, 0, 0))
-
+            print("Pose After: ", self.robot.pose)
             if input("Abort? y/n") == "y":
                 break
 
