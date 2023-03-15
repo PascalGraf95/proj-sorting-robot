@@ -13,8 +13,8 @@ v1.1 -> Client interface is working for linear movements, joint angle movements 
 import time
 import numpy as np
 # Import the dobot dll
-from cri_dobot.dobotMagician.dll_files import DobotDllType as dType
-from cri.transforms import euler2quat, quat2euler, transform, inv_transform
+from modules.cri_dobot.dobotMagician.dll_files import DobotDllType as dType
+from modules.cri.transforms import euler2quat, quat2euler, transform, inv_transform
 
 # ------------------------------------------#
 # Variables                                 #
