@@ -319,8 +319,6 @@ class dobotMagicianClient:
         check_pose(tcp)  # Check tcp is not invalid
         (x, y, z, rx, ry, rz) = tcp
 
-        print("*TCP SET CALLED* Received x:{}, y{}:, z: {}".format(x, y, z))
-
         lastIndex = dType.SetEndEffectorParams(self.api, x, y, z, isQueued=0)[
             0]  # tcp end position specified as x,y,z distance
 
@@ -619,4 +617,4 @@ class dobotMagicianClient:
         """Releases any resources held by the controller (e.g., sockets). And disconnects from Dobot magician
         """
         dType.DisconnectDobot(self.api)  # Disconnect the Dobot
-        print("Shutting down client ... Dobot disconnected !")
+        print("[INFO] DoBot disconnected.")

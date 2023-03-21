@@ -16,7 +16,7 @@ class DoBotRobotController:
         self.work_frame = work_frame
 
         # Set conveyor height and maneuvering height in work frame coordinates
-        self.conveyor_height = -58
+        self.conveyor_height = -59
         self.maneuvering_height = -20
         self.standby_height = 60
 
@@ -65,16 +65,16 @@ class DoBotRobotController:
         self.robot.sync_robot.set_home_params(homing_position)
 
         # Perform homing
-        print("Starting homing process...")
+        print("[INFO] Starting homing process...")
         self.robot.sync_robot.perform_homing()
-        print("Homing finished...")
+        print("[INFO] Homing finished...")
 
         # Return to work frame
         self.robot.coord_frame = self.work_frame
 
     def return_to_working_frame(self):
         # Move to origin of work frame
-        print("Moving to origin of work frame ...")
+        print("[INFO] Moving to origin of work frame ...")
         self.robot.move_linear((0, 0, 0, 0, 0, 0))
 
     def is_in_standby_position(self):
@@ -82,21 +82,28 @@ class DoBotRobotController:
         # If it is small enough return True
         current_pose = self.get_pose()
         current_pose = np.array(current_pose)
-        positional_difference_left = ((current_pose[:3] - np.array((-20, -60, self.standby_height)))**2).mean()
-        if positional_difference_left < 10:
+        # positional_difference_left = ((current_pose[:3] - np.array((-20, -60, self.standby_height)))**2).mean()
+        positional_difference_left = ((current_pose[:3] - np.array((-20, -190, self.maneuvering_height))) ** 2).mean()
+        positional_difference_right = ((current_pose[:3] - np.array((-80, 210, self.maneuvering_height))) ** 2).mean()
+        if positional_difference_left < 10 or positional_difference_right < 10:
             return True
         return False
 
-    def approach_standby_position(self):
-        robot_joint_angles = self.get_joint_angles()
+    def approach_standby_position(self, mode="sync"):
         robot_pose = self.get_pose()
-        if robot_pose[0] < -100:
-            if robot_pose[1] > 0:
-                self.robot.move_linear((-20, 190, self.maneuvering_height, 0, 0, 0))
-            else:
-                self.robot.move_linear((-20, -190, self.maneuvering_height, 0, 0, 0))
-            self.approach_maneuvering_position()
-        self.robot.move_linear((-20, -60, self.standby_height, 0, 0, 0))
+        # if robot_pose[0] < -100:
+        if robot_pose[1] > 0:
+            target_position = (-80, 210, self.maneuvering_height, 0, 0, 0)
+        else:
+            target_position = (-20, -190, self.maneuvering_height, 0, 0, 0)
+        if mode == "sync":
+            self.robot.move_linear(target_position)
+        elif mode == "async":
+            self.robot.async_move_linear(target_position)
+            return True
+        return False
+            #self.approach_maneuvering_position()
+        # self.robot.move_linear((-20, -60, self.standby_height, 0, 0, 0))
 
     def is_in_maneuvering_position(self):
         current_pose = self.get_pose()
@@ -123,7 +130,7 @@ class DoBotRobotController:
 
         self.robot.move_linear(current_pose_m)
         self.robot.move_linear(target_position_m)
-        self.robot.move_linear(target_position)
+        # self.robot.move_linear(target_position)
 
     def approach(self, target_position=(-20, -60, 0, 0, 0, 0)):
         self.robot.move_linear(target_position)
@@ -141,40 +148,47 @@ class DoBotRobotController:
     def release_item(self):
         self.robot.release()
 
-    def set_robot_velocity(self, velocity=100, acceleration=100):
-        pass
+    def get_async_results(self):
+        x = self.robot.async_result()
+        print(x)
 
-    def approach_storage(self, n_storage):
-        current_pose = self.get_pose()
-        print("Approach Storage: ", n_storage)
-        if n_storage < 3:
+    def approach_storage(self, n_storage, mode="sync"):
+        print("[INFO] Approach Storage: ", n_storage)
+        if n_storage < 5:
             self.robot.move_linear((-20, -190, self.maneuvering_height, 0, 0, 0))
-            self.robot.move_linear((-100, -190, self.maneuvering_height, 0, 0, 0))
-            self.robot.move_linear((-280, -230, self.maneuvering_height, 0, 0, 0))
+            # self.robot.move_linear((-100, -190, self.maneuvering_height, 0, 0, 0))
         else:
             self.robot.move_linear((-20, 190, self.maneuvering_height, 0, 0, 0))
-            self.robot.move_linear((-100, 190, self.maneuvering_height, 0, 0, 0))
-            self.robot.move_linear((-280, 230, self.maneuvering_height, 0, 0, 0))
-        """
+            #  self.robot.move_linear((-100, 190, self.maneuvering_height, 0, 0, 0))
         if n_storage == 0:
-            [x_storage, y_storage, z_storage, r_storage] = ()
+            target_position = (-190, -190, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 1:
-            [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_2
+            target_position = (-190, -240, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 2:
-            [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_3
+            target_position = (-290, -190, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 3:
-            [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_4
+            target_position = (-290, -240, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 4:
-            [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_5
+            target_position = (-375, -250, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 5:
-            [x_storage, y_storage, z_storage, r_storage] = Setup.DoBot_dumping_6
+            target_position = (-190, 180, self.maneuvering_height, 0, 0, 0)
+        elif n_storage == 6:
+            target_position = (-190, 230, self.maneuvering_height, 0, 0, 0)
+        elif n_storage == 7:
+            target_position = (-290, 180, self.maneuvering_height, 0, 0, 0)
+        elif n_storage == 8:
+            target_position = (-290, 230, self.maneuvering_height, 0, 0, 0)
+        elif n_storage == 9:
+            target_position = (-375, 250, self.maneuvering_height, 0, 0, 0)
         else:
             print("[WARNING] There is no storage with number {}".format(n_storage))
-            x_storage, y_storage, z_storage, r_storage = None, None, None, None
-
-        self.approach_at_maneuvering_height((x_storage, y_storage, z_storage), r_storage)
-        """
-        self.release_item()
+            target_position = self.get_pose()
+        if mode == "sync":
+            self.robot.move_linear(target_position)
+        elif mode == "async":
+            self.robot.async_move_linear(target_position)
+            return True
+        return False
 
     def test_robot(self):
         while True:
