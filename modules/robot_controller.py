@@ -222,7 +222,7 @@ class DoBotRobotController:
         if self.robot_is_busy:
             # ToDo: What's returned by this function?
             x = self.robot.async_result()
-            print(x)
+            print("ASYNC RESULT", x)
             if x > 0:
                 self.robot_is_busy = False
 
@@ -255,11 +255,6 @@ class DoBotRobotController:
 
 def main():
     robot_controller = DoBotRobotController()
-    # robot_controller.approach_at_maneuvering_height((0, 180, -58, 0, 0, 0))
-    # robot_controller.approach_at_maneuvering_height((50, 180, -58, 0, 0, 0))
-    # robot_controller.approach_maneuvering_position()
-    # print(robot_controller.get_joint_angles())
-    # robot_controller.pick_item()
     robot_controller.test_robot()
     robot_controller.disconnect_robot()
     return
