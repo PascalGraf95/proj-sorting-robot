@@ -43,16 +43,14 @@ def get_object_angles_and_filter_by_diameter(rectangles, max_width=1000):
     return object_dictionary
 
 
-def check_conveyor_force_stop_condition(object_dictionary, robot, min_x_val=300):
-    if robot.is_in_maneuvering_position():
-        return True
+def check_conveyor_force_stop_condition(object_dictionary, robot, min_x_val=200):
     for key, val in object_dictionary.items():
         if val[0][0] <= min_x_val:
             return True
     return False
 
 
-def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=600):
+def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=700):
     if not robot.is_in_standby_position():
         return False
 
@@ -123,8 +121,6 @@ def test_camera_image(cam):
 def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync"):
     # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
-    robot_active = False
-    robot_state = ""
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
@@ -143,29 +139,33 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync"):
                 if not conveyor_belt.is_running():
                     conveyor_belt.start()
 
-            if not conveyor_belt.is_running() and robot.is_in_standby_position():
+            if not conveyor_belt.is_running() and robot.get_robot_state() == 0:
                 # Get the first object which is the one furthest to the left on the conveyor.
                 position, angle = get_next_object_to_grab(object_dictionary)
                 # Transform its position into the robot coordinate system.
                 position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
                 # Approach its position and pick it up.
-                # robot.approach_maneuvering_position()
                 robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
                 robot.pick_item()
-                # Then move to the respective storage and release it.
-                robot_active = robot.approach_storage(np.random.randint(0, 10), mode=mode)
-                robot.release_item()
-                # Finally return to the robot standby position.
-                robot_active = robot.approach_standby_position(mode=mode)
+                # Choose the storage number, start the synchronous or asynchronous deposit process.
+                n_storage = np.random.randint(0, 10)
+                if mode == "sync":
+                    # Then move to the respective storage and release it.
+                    robot.approach_storage(n_storage)
+                    robot.release_item()
+                    # Finally return to the robot standby position.
+                    robot.approach_standby_position()
+                else:
+                    robot.async_deposit_process(start_process=True, n_storage=n_storage)
 
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
             last_image_captured_ts = time.time()
 
             if show_image(canvas_image, wait_for_ms=(interval * 1000) // 3):
                 break
-        if robot_active and mode == "async":
-            robot.get_async_results()
-    print("Finished sorting data!")
+        if mode == "async":
+            robot.async_deposit_process()
+    print("[INFO] Finished sorting data!")
 
 
 def calibrate_robot():
