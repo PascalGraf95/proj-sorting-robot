@@ -8,6 +8,10 @@ import numpy as np
 from modules.misc import serial_ports
 
 
+robot_state_dictionary = {0: "Robot Ready", 1: "Robot at Standby Position", 2: "Robot approaching Storage Position",
+                          3: "Robot approaching Standby Position"}
+
+
 class DoBotRobotController:
     def __init__(self, linear_speed=250, angular_speed=250,
                  base_frame=(0, 0, 0, 0, 0, 0), work_frame=(230, 0, 80, 0, 0, 0)):
@@ -19,19 +23,15 @@ class DoBotRobotController:
         self.conveyor_height = -59
         self.maneuvering_height = -20
         self.standby_height = 60
+        self.standby_position_right = (-80, 210, self.maneuvering_height, 0, 0, 0)
+        self.standby_position_left = (-20, -190, self.maneuvering_height, 0, 0, 0)
 
-        # Find the correct USB port to connect to
-        available_ports = serial_ports()
-        dobot_port = ""
-        for port in available_ports:
-            if 'Silicon Labs CP210x' in port[1]:
-                dobot_port = port[0]
-                break
-        if dobot_port == "":
-            raise ConnectionError("[ERROR] DoBot port could not be found!")
+        # Robot States for Async Maneuvering
+        self.robot_is_busy = False
+        self.robot_state = 0
 
         # Connect and setup DoBot
-        self.robot = AsyncRobot(SyncDobot(dobotMagicianController(port=dobot_port)))
+        self.robot = self.connect_robot()
         # Set TCP, linear speed,  angular speed and coordinate frame
         # With the suction cup or gripper attachment the corresponding tool center point is (59.7, 0, 0, 0, 0, 0).
         self.robot.tcp = (59.7, 0, 0, 0, 0, 0)
@@ -46,12 +46,19 @@ class DoBotRobotController:
         # Move to standby position
         self.approach_standby_position()
 
-    def get_pose(self):
-        # Get and return the current robot pose consisting of the end effector position
-        return self.robot.pose
-
-    def get_joint_angles(self):
-        return self.robot.joint_angles
+    # region --- Connection and Initialization ---
+    @staticmethod
+    def connect_robot():
+        # Find the correct USB port to connect to
+        available_ports = serial_ports()
+        dobot_port = ""
+        for port in available_ports:
+            if 'Silicon Labs CP210x' in port[1]:
+                dobot_port = port[0]
+                break
+        if dobot_port == "":
+            raise ConnectionError("[ERROR] DoBot port could not be found!")
+        return AsyncRobot(SyncDobot(dobotMagicianController(port=dobot_port)))
 
     def disconnect_robot(self):
         # Shutdown and disconnect from the usb port
@@ -71,11 +78,15 @@ class DoBotRobotController:
 
         # Return to work frame
         self.robot.coord_frame = self.work_frame
+    # endregion
 
-    def return_to_working_frame(self):
-        # Move to origin of work frame
-        print("[INFO] Moving to origin of work frame ...")
-        self.robot.move_linear((0, 0, 0, 0, 0, 0))
+    # region --- Queries ---
+    def get_pose(self):
+        # Get and return the current robot pose consisting of the end effector position
+        return self.robot.pose
+
+    def get_joint_angles(self):
+        return self.robot.joint_angles
 
     def is_in_standby_position(self):
         # Calculate the difference between the current pose and the standby_position.
@@ -89,22 +100,6 @@ class DoBotRobotController:
             return True
         return False
 
-    def approach_standby_position(self, mode="sync"):
-        robot_pose = self.get_pose()
-        # if robot_pose[0] < -100:
-        if robot_pose[1] > 0:
-            target_position = (-80, 210, self.maneuvering_height, 0, 0, 0)
-        else:
-            target_position = (-20, -190, self.maneuvering_height, 0, 0, 0)
-        if mode == "sync":
-            self.robot.move_linear(target_position)
-        elif mode == "async":
-            self.robot.async_move_linear(target_position)
-            return True
-        return False
-            #self.approach_maneuvering_position()
-        # self.robot.move_linear((-20, -60, self.standby_height, 0, 0, 0))
-
     def is_in_maneuvering_position(self):
         current_pose = self.get_pose()
         current_joint_angles = self.get_joint_angles()
@@ -115,6 +110,11 @@ class DoBotRobotController:
             return True
         return False
 
+    def get_robot_state(self):
+        return self.robot_state
+    # endregion
+
+    # region --- Sync Maneuvering ---
     def approach_maneuvering_position(self):
         self.robot.move_linear((0, -60, self.maneuvering_height, 0, 0, 0))
 
@@ -135,6 +135,20 @@ class DoBotRobotController:
     def approach(self, target_position=(-20, -60, 0, 0, 0, 0)):
         self.robot.move_linear(target_position)
 
+    def approach_standby_position(self, force_side=''):
+        target_position = self.get_standby_position(force_side=force_side)
+        self.robot.move_linear(target_position)
+        # self.approach_maneuvering_position()
+        # self.robot.move_linear((-20, -60, self.standby_height, 0, 0, 0))
+
+    def get_standby_position(self, force_side=''):
+        robot_pose = self.get_pose()
+        if (robot_pose[1] > 0 or force_side == 'right') and not force_side == 'left':
+            target_position = self.standby_position_right
+        else:
+            target_position = self.standby_position_left
+        return target_position
+
     def pick_item(self):
         # Move to maneuvering height in current pose
         current_pose = self.get_pose()
@@ -148,18 +162,17 @@ class DoBotRobotController:
     def release_item(self):
         self.robot.release()
 
-    def get_async_results(self):
-        x = self.robot.async_result()
-        print(x)
-
-    def approach_storage(self, n_storage, mode="sync"):
+    def approach_storage(self, n_storage):
         print("[INFO] Approach Storage: ", n_storage)
         if n_storage < 5:
-            self.robot.move_linear((-20, -190, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear(self.standby_position_left)
             # self.robot.move_linear((-100, -190, self.maneuvering_height, 0, 0, 0))
         else:
-            self.robot.move_linear((-20, 190, self.maneuvering_height, 0, 0, 0))
+            self.robot.move_linear(self.standby_position_right)
             #  self.robot.move_linear((-100, 190, self.maneuvering_height, 0, 0, 0))
+        self.robot.move_linear(self.get_storage_position(n_storage))
+
+    def get_storage_position(self, n_storage):
         if n_storage == 0:
             target_position = (-190, -190, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 1:
@@ -183,12 +196,7 @@ class DoBotRobotController:
         else:
             print("[WARNING] There is no storage with number {}".format(n_storage))
             target_position = self.get_pose()
-        if mode == "sync":
-            self.robot.move_linear(target_position)
-        elif mode == "async":
-            self.robot.async_move_linear(target_position)
-            return True
-        return False
+        return target_position
 
     def test_robot(self):
         while True:
@@ -206,6 +214,44 @@ class DoBotRobotController:
             print("Pose After: ", self.robot.pose)
             if input("Abort? y/n") == "y":
                 break
+    # endregion
+
+    # region --- Async Maneuvering ---
+    def async_deposit_process(self, start_process=False, n_storage=-1):
+        # If the robot is currently busy, wait for the asynchronous result.
+        if self.robot_is_busy:
+            # ToDo: What's returned by this function?
+            x = self.robot.async_result()
+            print(x)
+            if x > 0:
+                self.robot_is_busy = False
+
+        # If called after picking up an object, start the deposit process by moving to the standby position in a
+        # synchronous fashion.
+        if start_process and self.robot_state == 0 and not self.robot_is_busy:
+            self.approach_standby_position(force_side='left' if n_storage < 5 else 'right')
+            self.robot_state = 1
+
+        # If the robot is not currently busy, start the next step of the process.
+        if not self.robot_is_busy:
+            # If the robot is at standby position with an object picked, start async process to move towards the
+            # correct storage.
+            if self.robot_state == 1:
+                target_position = self.get_storage_position(n_storage)
+                self.robot.async_move_linear(target_position)
+                self.robot_is_busy = True
+                self.robot_state = 2
+            # If the robot is at storage position, release the object and head back to standby position.
+            elif self.robot_state == 2:
+                self.release_item()
+                self.robot.async_move_linear(self.get_standby_position())
+                self.robot_is_busy = True
+                self.robot_state = 3
+            # If the robot is back at the standby position, set the robots state back to 0.
+            elif self.robot_state == 3:
+                self.robot_state = 0
+    # endregion
+
 
 
 def main():
