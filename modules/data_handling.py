@@ -35,7 +35,11 @@ def plot_clusters(data, labels):
     else:
         fig = plt.figure()
         ax = fig.add_subplot()
-        ax.scatter(data[:, 0], data[:, 1], c=labels)
+        if data.shape[1] > 1:
+            ax.scatter(data[:, 0], data[:, 1], c=labels)
+        else:
+            x_data = np.zeros(data.shape[0])
+            ax.plot(x_data, data[:, 0], c=labels)
     plt.show()
 
 

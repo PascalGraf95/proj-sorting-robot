@@ -25,32 +25,33 @@ def optimize_images_and_store(input_path, output_path):
         print("Converted Image {} from {}".format(idx+1, num_of_images))
 
 
-def extract_and_store_objects_with_features(preprocessed_image):
-    contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
-    feature_list = get_image_features(object_images, contours, rectangles)
-    standardize_and_store_images_and_features(object_images, feature_list)
-    return bounding_boxes
+def extract_features(contours, rectangles, object_images, store_features=True):
+    feature_list = None
+    if len(rectangles):
+        feature_list = get_image_features(object_images, contours, rectangles)
+        if store_features:
+            standardize_and_store_images_and_features(object_images, feature_list)
+    return feature_list
 
 
-def get_object_angles_and_filter_by_diameter(rectangles, max_width=1000):
+def get_object_angles(rectangles):
     object_dictionary = {}
     for idx, rect in enumerate(rectangles):
         (x, y), (width, height), angle = rect
         if height > width:
             angle -= 90
-        if width < max_width:
-            object_dictionary[idx] = ((x, y), angle)
+        object_dictionary[idx] = ((x, y), angle)
     return object_dictionary
 
 
-def check_conveyor_force_stop_condition(object_dictionary, robot, min_x_val=200):
+def check_conveyor_force_stop_condition(object_dictionary, min_x_val=400):
     for key, val in object_dictionary.items():
         if val[0][0] <= min_x_val:
             return True
     return False
 
 
-def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=700):
+def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=1000):
     if not robot.is_in_standby_position():
         return False
 
@@ -64,75 +65,94 @@ def get_next_object_to_grab(object_dictionary):
     min_x_val = np.inf
     next_object_pos = None
     next_object_ang = None
+    next_object_idx = None
+    idx = 0
     for key, val in object_dictionary.items():
         if val[0][0] <= min_x_val:
             min_x_val = val[0][0]
             next_object_pos = val[0]
             next_object_ang = val[1]
-    return next_object_pos, next_object_ang
+            next_object_idx = idx
+        idx += 1
+    return next_object_pos, next_object_ang, next_object_idx
 
 
-def data_collection_phase(cam, interval=1.0):
+def data_collection_phase(cam, conveyor_belt, interval=1.0):
     last_image_captured_ts = time.time()
-
+    conveyor_belt.start()
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
             preprocessed_image = image_preprocessing(image)
-            bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
+            contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
+                                                                                                    smaller_image_area=True)
+            _ = extract_features(contours, rectangles, object_images, store_features=True)
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
             last_image_captured_ts = time.time()
 
             if show_image(canvas_image, wait_for_ms=(interval*1000)//3):
                 break
+    conveyor_belt.stop()
     print("Finished collecting data!")
 
 
 def clustering_phase(feature_method="cv_image_features", feature_type='all'):
     if feature_method == "cv_image_features":
         data_paths, image_features = parse_cv_image_features(feature_type=feature_type)
+        image_features = select_features(image_features, feature_type=feature_type)
         image_array = load_images_from_path_list(data_paths)
     else:
         print("Not implemented yet")
         return
 
-    pca = PCAReduction(dims=2)
-    reduced_features = pca.fit_to_data(image_features)
+    pca = None
+    if image_features.shape[1] > 2:
+        pca = PCAReduction(dims=2)
+        reduced_features = pca.fit_to_data(image_features)
+    else:
+        reduced_features = image_features
 
     kmeans = KMeansClustering('auto')
     labels = kmeans.fit_to_data(reduced_features)
 
-    plot_clusters(reduced_features, labels)
+    if len(reduced_features.shape) > 1:
+        plot_clusters(reduced_features, labels)
     show_cluster_images(image_array, labels)
+    return pca, kmeans
 
 
 def test_camera_image(cam):
     while True:
         image = cam.capture_image()
         preprocessed_image = image_preprocessing(image)
-        # preprocessed_image = image_thresholding_stack(preprocessed_image)
-        # bounding_boxes = extract_and_store_objects_with_features(preprocessed_image)
-        # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+        preprocessed_image2 = image_thresholding_stack(preprocessed_image)
+        contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
+        _ = extract_features(contours, rectangles, object_images, store_features=False)
+        canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
 
-        if show_image(preprocessed_image, wait_for_ms=1):
+        if show_image(canvas_image, wait_for_ms=1):
+            break
+        if show_image(preprocessed_image2, wait_for_ms=1, window_name="Image2"):
             break
 
 
-def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync"):
+def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clustering_algorithm=None,
+                  reduction_algorithm=None, feature_type="all"):
     # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
+            print(".")
             # Preprocess image and extract objects
             preprocessed_image = image_preprocessing(image)
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
             # Filter object by maximum diameter (no objects to wide to grab), then get center position and angle
-            object_dictionary = get_object_angles_and_filter_by_diameter(rectangles)
+            object_dictionary = get_object_angles(rectangles)
             # Stop the conveyor if an object is inside picking range and if the robot is ready to pick it up.
             # Force stop if the robot currently is in maneuvering position or when an object is about to leave
             # the camera frame.
-            if check_conveyor_force_stop_condition(object_dictionary, robot) or \
+            if check_conveyor_force_stop_condition(object_dictionary) or \
                     check_conveyor_soft_stop_condition(object_dictionary, robot):
                 conveyor_belt.stop()
             else:
@@ -141,14 +161,21 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync"):
 
             if not conveyor_belt.is_running() and robot.get_robot_state() == 0:
                 # Get the first object which is the one furthest to the left on the conveyor.
-                position, angle = get_next_object_to_grab(object_dictionary)
+                position, angle, index = get_next_object_to_grab(object_dictionary)
                 # Transform its position into the robot coordinate system.
                 position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
                 # Approach its position and pick it up.
                 robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
                 robot.pick_item()
-                # Choose the storage number, start the synchronous or asynchronous deposit process.
-                n_storage = np.random.randint(0, 10)
+                if not clustering_algorithm:
+                    # Choose the storage number, start the synchronous or asynchronous deposit process.
+                    n_storage = np.random.randint(0, 10)
+                else:
+                    image_features = extract_features(contours, rectangles, object_images, store_features=False)
+                    image_features = select_features(image_features, feature_type=feature_type)
+                    if reduction_algorithm:
+                        image_features = reduction_algorithm.predict(image_features)
+                    n_storage = clustering_algorithm.predict(image_features)[index]
                 if mode == "sync":
                     # Then move to the respective storage and release it.
                     robot.approach_storage(n_storage)
@@ -166,6 +193,7 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync"):
         if mode == "async":
             robot.async_deposit_process()
     print("[INFO] Finished sorting data!")
+    conveyor_belt.stop()
 
 
 def calibrate_robot():
@@ -179,6 +207,8 @@ def calibrate_robot():
 
 
 def main():
+    # calibrate_robot()
+    # test_camera_image()
     calc_transformation_matrices()
     robot = DoBotRobotController()
     conveyor_belt = ConveyorBelt()
@@ -186,11 +216,12 @@ def main():
     cam.capture_image()
     time.sleep(0.5)
 
-    sorting_phase(cam, robot, conveyor_belt, mode="async")
-    # data_collection_phase(cam, interval=1)
-    # clustering_phase(feature_type="color")
-    # test_camera_image(cam)
-    conveyor_belt.stop()
+    # data_collection_phase(cam, conveyor_belt, interval=1)
+    feature_type = "length_color"
+    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
+    sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
+                  reduction_algorithm=reduction_algorithm, feature_type=feature_type)
+
     robot.disconnect_robot()
     conveyor_belt.disconnect()
     cam.close_camera_connection()
@@ -198,8 +229,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # ToDo: Extract object information on sorting
+    # ToDo: Fix some positions leading to error
     # ToDo: Implement deep feature extractor (e.g. patch-core)
-    # ToDo: Async Robot
     # ToDo: Optimize Arcs
 

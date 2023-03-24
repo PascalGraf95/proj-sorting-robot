@@ -1,6 +1,7 @@
 from modules.cri.robot import AsyncRobot
 from modules.cri_dobot.robot import SyncDobot
 from modules.cri_dobot.controller import dobotMagicianController
+from datetime import datetime
 from cri_dobot.dobotMagician.dll_files import DobotDllType as dType
 
 import time
@@ -29,6 +30,7 @@ class DoBotRobotController:
         # Robot States for Async Maneuvering
         self.robot_is_busy = False
         self.robot_state = 0
+        self.last_task_sent = datetime.now()
 
         # Connect and setup DoBot
         self.robot = self.connect_robot()
@@ -219,10 +221,8 @@ class DoBotRobotController:
     # region --- Async Maneuvering ---
     def async_deposit_process(self, start_process=False, n_storage=-1):
         # If the robot is currently busy, wait for the asynchronous result.
-        if self.robot_is_busy:
-            # ToDo: What's returned by this function?
+        if self.robot_is_busy and (datetime.now() - self.last_task_sent).total_seconds() > 2:
             x = self.robot.async_result()
-            print("ASYNC RESULT", x)
             if x > 0:
                 self.robot_is_busy = False
 
@@ -239,12 +239,14 @@ class DoBotRobotController:
             if self.robot_state == 1:
                 target_position = self.get_storage_position(n_storage)
                 self.robot.async_move_linear(target_position)
+                self.last_task_sent = datetime.now()
                 self.robot_is_busy = True
                 self.robot_state = 2
             # If the robot is at storage position, release the object and head back to standby position.
             elif self.robot_state == 2:
                 self.release_item()
                 self.robot.async_move_linear(self.get_standby_position())
+                self.last_task_sent = datetime.now()
                 self.robot_is_busy = True
                 self.robot_state = 3
             # If the robot is back at the standby position, set the robots state back to 0.

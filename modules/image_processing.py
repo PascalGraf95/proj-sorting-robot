@@ -6,11 +6,11 @@ import csv
 import ast
 
 
-def show_image(image, wait_for_ms=0):
+def show_image(image, wait_for_ms=0, window_name="Image"):
     abort = False
-    cv2.namedWindow('Image')
-    cv2.setMouseCallback('Image', print_mouse_position)
-    cv2.imshow("Image", image)
+    cv2.namedWindow(window_name)
+    cv2.setMouseCallback(window_name, print_mouse_position)
+    cv2.imshow(window_name, image)
     if cv2.waitKey(int(wait_for_ms)) & 0xFF == ord('q'):
         abort = True
     return abort
@@ -108,10 +108,10 @@ def image_preprocessing(image):
     # correction_factors = get_white_balance_parameters(mean_vals)
     # image = correct_image_white_balance(image, correction_factors)
     # image = equalize_histograms(image, True, 1.4, (8, 8))
-    patch_size = (680, 1600)
-    image = get_image_patch(image, (620, 800), patch_size)  # 650, 500, 700
+    patch_size = (710, 1600)
+    image = get_image_patch(image, (590, 800), patch_size)  # 650, 500, 700
     patch_size_ratio = patch_size[0] / patch_size[1]
-    image = cv2.resize(image, (1000, int(1000 * patch_size_ratio)))
+    image = cv2.resize(image, (1600, int(1600 * patch_size_ratio)))
     return image
 
 
@@ -124,16 +124,16 @@ def print_mouse_position(event, x, y, flags, param):
 def image_thresholding_stack(image):
     image = cv2.medianBlur(image, 7)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 25, 3)
+    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 17, 3)
     image = cv2.bitwise_not(image)
     kernel = np.ones((3, 3), np.uint8)
     image = cv2.erode(image, kernel, iterations=1)
-    kernel = np.ones((3, 3), np.uint8)
+    kernel = np.ones((5, 5), np.uint8)
     image = cv2.dilate(image, kernel, iterations=2)
     return image
 
 
-def extract_and_filter_contours(image, min_area=700):
+def extract_and_filter_contours(image, min_area=600, smaller_image_area=False):
     # Get all contours in image
     contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
@@ -148,8 +148,12 @@ def extract_and_filter_contours(image, min_area=700):
             if cv2.contourArea(c) >= min_area:
                 # Contour bounding box cannot touch the image borders
                 x, y, w, h = cv2.boundingRect(c)
-                if x > 0 and y > 0 and x+w < image.shape[1] and y+h < image.shape[0]:
-                    filtered_contours.append(c)
+                if smaller_image_area:
+                    if x > 200 and y > 50 and x+w < image.shape[1]*0.8 and y+h < image.shape[0]*0.95:
+                        filtered_contours.append(c)
+                else:
+                    if x > 0 and y > 0 and x+w < image.shape[1] and y+h < image.shape[0]:
+                        filtered_contours.append(c)
     return filtered_contours
 
 
@@ -206,18 +210,8 @@ def store_images_and_image_features(image_list, hu_moments_list):
             files_in_dir += 1
 
 
-def parse_cv_image_features(feature_type='all'):
-    with open(os.path.join(r"stored_images", "image_features.csv"), 'r', newline='') as file:
-        reader = csv.reader(file)
-        data_paths = []
-        features = []
-        for row in reader:
-            data_paths.append(row[0])
-            feature_str = row[1].replace("\n", ",")
-            feature = ast.literal_eval(feature_str)
-            # features.append([f[0] for f in feature])
-            features.append(feature)
-
+def select_features(features, feature_type='all'):
+    # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, area, aspect, color, color, color, length]
     if feature_type == 'hu':
         features = [f[:7] for f in features]
     elif feature_type == 'area':
@@ -232,8 +226,36 @@ def parse_cv_image_features(feature_type='all'):
         features = [f[7:9] for f in features]
     elif feature_type == 'area_aspect_color':
         features = [f[7:12] for f in features]
+    elif feature_type == 'length':
+        features = [f[12] for f in features]
+    elif feature_type == 'length_color':
+        features = [f[9:13] for f in features]
+    elif feature_type == 'length_color_aspect':
+        features = [f[8:13] for f in features]
+    elif feature_type == 'length_color_aspect_area':
+        features = [f[7:13] for f in features]
+    elif feature_type == 'length_color_area':
+        features = [f[7, 9:13] for f in features]
 
-    return data_paths, np.array(features)
+    features = np.array(features)
+    if len(features.shape) == 1:
+        features = np.expand_dims(features, axis=1)
+    return features
+
+
+def parse_cv_image_features(feature_type='all'):
+    with open(os.path.join(r"stored_images", "image_features.csv"), 'r', newline='') as file:
+        reader = csv.reader(file)
+        data_paths = []
+        features = []
+        for row in reader:
+            data_paths.append(row[0])
+            feature_str = row[1].replace("\n", ",")
+            feature = ast.literal_eval(feature_str)
+            # features.append([f[0] for f in feature])
+            features.append(feature)
+    features = select_features(features, feature_type='all')
+    return data_paths, features
 
 
 def calculate_hu_moments_from_contours(contours):
@@ -262,10 +284,19 @@ def get_rectangle_aspect_ratios(rectangles):
             rectangle_aspect_list.append(rectangle[1][1] / rectangle[1][0])
     return rectangle_aspect_list
 
+
 def get_mean_image_color(object_images):
     mean_color_list = []
     for image in object_images:
-        mean_color_list.append(np.mean(image, axis=(0, 1)).tolist())
+        new_image_width = int(image.shape[1] * 0.75)
+        new_image_height = int(image.shape[0] * 0.75)
+        image_center = [int(image.shape[0] * 0.5), int(image.shape[1] * 0.5)]
+        cropped_image = image.copy()[image_center[0] - int(new_image_height*0.5):
+                                     image_center[0] + int(new_image_height*0.5),
+                                     image_center[1] - int(new_image_width*0.5):
+                                     image_center[1] + int(new_image_width*0.5)]
+        cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2HSV)
+        mean_color_list.append(np.mean(cropped_image, axis=(0, 1)).tolist())
     return mean_color_list
 
 
@@ -284,13 +315,20 @@ def standardize_images(image_list, xy_size=224):
     return standardized_images
 
 
-def get_objects_in_preprocessed_image(preprocessed_image):
+def get_objects_in_preprocessed_image(preprocessed_image, smaller_image_area=False):
     binary_image = image_thresholding_stack(preprocessed_image)
-    contours = extract_and_filter_contours(binary_image)
+    contours = extract_and_filter_contours(binary_image, smaller_image_area=smaller_image_area)
     rectangles = get_rects_from_contours(contours)
     bounding_boxes = get_bounding_boxes_from_rectangles(rectangles)
     object_images = warp_objects_horizontal(preprocessed_image, rectangles, bounding_boxes)
     return contours, rectangles, bounding_boxes, object_images
+
+
+def get_length_list(rectangles):
+    length_list = []
+    for rectangle in rectangles:
+        length_list.append(max(rectangle[1]))
+    return length_list
 
 
 def get_image_features(object_images, contours, rectangles):
@@ -298,10 +336,11 @@ def get_image_features(object_images, contours, rectangles):
     rectangle_area_list = get_rectangle_areas(rectangles)
     rectangle_aspect_list = get_rectangle_aspect_ratios(rectangles)
     mean_color_list = get_mean_image_color(object_images)
+    length_list = get_length_list(rectangles)
 
-    object_feature_list = [[*h, a, asp, *c] for h, a, asp, c in zip(hu_moments_list, rectangle_area_list,
-                                                                    rectangle_aspect_list,
-                                                                    mean_color_list)]
+    object_feature_list = [[*h, a, asp, *c, l] for h, a, asp, c, l in zip(hu_moments_list, rectangle_area_list,
+                                                                          rectangle_aspect_list,
+                                                                          mean_color_list, length_list)]
     return object_feature_list
 
 
