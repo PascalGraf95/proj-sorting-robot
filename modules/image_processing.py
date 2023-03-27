@@ -196,12 +196,13 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
 
 
 def store_images_and_image_features(image_list, hu_moments_list):
-    dir_path = os.path.join(r"stored_images", date.today().strftime("%y%m%d_images"))
+    date_str = date.today().strftime("%y%m%d_%H%M%S")
+    dir_path = os.path.join(r"stored_images", date_str + "_images")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
     files_in_dir = len(os.listdir(dir_path))
-    with open(os.path.join(r"stored_images", "image_features.csv"), 'a', newline='') as file:
+    with open(os.path.join(r"stored_images", date_str + "_image_features.csv"), 'w', newline=';') as file:
         writer = csv.writer(file)
         for image, hu_moments in zip(image_list, hu_moments_list):
             file_name = "image_{:05d}.png".format(files_in_dir)
@@ -212,31 +213,21 @@ def store_images_and_image_features(image_list, hu_moments_list):
 
 def select_features(features, feature_type='all'):
     # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, area, aspect, color, color, color, length]
-    if feature_type == 'hu':
-        features = [f[:7] for f in features]
-    elif feature_type == 'area':
-        features = [f[7] for f in features]
-    elif feature_type == 'aspect':
-        features = [f[8] for f in features]
-    elif feature_type == 'color':
-        features = [f[9:12] for f in features]
-    elif feature_type == 'color_area':
-        features = [f[7:12] for f in features]
-    elif feature_type == 'area_aspect':
-        features = [f[7:9] for f in features]
-    elif feature_type == 'area_aspect_color':
-        features = [f[7:12] for f in features]
-    elif feature_type == 'length':
-        features = [f[12] for f in features]
-    elif feature_type == 'length_color':
-        features = [f[9:13] for f in features]
-    elif feature_type == 'length_color_aspect':
-        features = [f[8:13] for f in features]
-    elif feature_type == 'length_color_aspect_area':
-        features = [f[7:13] for f in features]
-    elif feature_type == 'length_color_area':
-        features = [f[7, 9:13] for f in features]
-
+    # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,  7  ,   8   ,   9  ,   10 ,   11 ,   12  ]
+    feature_indices = []
+    if 'all' in feature_type:
+        feature_indices.append(list(range(13)))
+    if 'hu' in feature_type:
+        feature_indices.append(list(range(7)))
+    if 'area' in feature_type:
+        feature_indices.append(7)
+    if 'aspect' in feature_type:
+        feature_indices.append(8)
+    if 'color' in feature_type:
+        feature_indices.append(list(range(9, 12)))
+    if 'length' in feature_type:
+        feature_indices.append(12)
+    features = [f[feature_indices] for f in features]
     features = np.array(features)
     if len(features.shape) == 1:
         features = np.expand_dims(features, axis=1)
@@ -244,7 +235,8 @@ def select_features(features, feature_type='all'):
 
 
 def parse_cv_image_features(feature_type='all'):
-    with open(os.path.join(r"stored_images", "image_features.csv"), 'r', newline='') as file:
+    sorted_files = [f for f in os.listdir("stored_images") if "csv" in f]
+    with open(os.path.join(r"stored_images", sorted_files[-1]), 'r', newline=';') as file:
         reader = csv.reader(file)
         data_paths = []
         features = []
@@ -252,9 +244,8 @@ def parse_cv_image_features(feature_type='all'):
             data_paths.append(row[0])
             feature_str = row[1].replace("\n", ",")
             feature = ast.literal_eval(feature_str)
-            # features.append([f[0] for f in feature])
             features.append(feature)
-    features = select_features(features, feature_type='all')
+    features = select_features(features, feature_type=feature_type)
     return data_paths, features
 
 
