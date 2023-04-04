@@ -98,7 +98,7 @@ def data_collection_phase(cam, conveyor_belt, interval=1.0):
 
 def clustering_phase(feature_method="cv_image_features", feature_type='all'):
     if feature_method == "cv_image_features":
-        data_paths, image_features = parse_cv_image_features(feature_type=feature_type)
+        data_paths, image_features = parse_cv_image_features()
         image_features = select_features(image_features, feature_type=feature_type)
         image_array = load_images_from_path_list(data_paths)
     else:
@@ -223,7 +223,7 @@ def main():
     cam.capture_image()
     time.sleep(0.5)
 
-    # data_collection_phase(cam, conveyor_belt, interval=1)
+    data_collection_phase(cam, conveyor_belt, interval=1)
     feature_type = "length_color"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
     sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,

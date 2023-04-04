@@ -1,9 +1,11 @@
 import cv2
 import numpy as np
 import os
-from datetime import date
+from datetime import date, datetime
 import csv
 import ast
+
+date_str = ""
 
 
 def show_image(image, wait_for_ms=0, window_name="Image"):
@@ -149,7 +151,7 @@ def extract_and_filter_contours(image, min_area=600, smaller_image_area=False):
                 # Contour bounding box cannot touch the image borders
                 x, y, w, h = cv2.boundingRect(c)
                 if smaller_image_area:
-                    if x > 200 and y > 50 and x+w < image.shape[1]*0.8 and y+h < image.shape[0]*0.95:
+                    if x > 400 and y > 50 and x+w < image.shape[1]-400 and y+h < image.shape[0]-50:
                         filtered_contours.append(c)
                 else:
                     if x > 0 and y > 0 and x+w < image.shape[1] and y+h < image.shape[0]:
@@ -196,13 +198,15 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
 
 
 def store_images_and_image_features(image_list, hu_moments_list):
-    date_str = date.today().strftime("%y%m%d_%H%M%S")
+    global date_str
+    if not len(date_str):
+        date_str = datetime.now().strftime("%y%m%d_%H%M%S")
     dir_path = os.path.join(r"stored_images", date_str + "_images")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
     files_in_dir = len(os.listdir(dir_path))
-    with open(os.path.join(r"stored_images", date_str + "_image_features.csv"), 'w', newline=';') as file:
+    with open(os.path.join(r"stored_images", date_str + "_image_features.csv"), 'a', newline='') as file:
         writer = csv.writer(file)
         for image, hu_moments in zip(image_list, hu_moments_list):
             file_name = "image_{:05d}.png".format(files_in_dir)
@@ -216,27 +220,33 @@ def select_features(features, feature_type='all'):
     # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,  7  ,   8   ,   9  ,   10 ,   11 ,   12  ]
     feature_indices = []
     if 'all' in feature_type:
-        feature_indices.append(list(range(13)))
+        feature_indices += list(range(13))
     if 'hu' in feature_type:
-        feature_indices.append(list(range(7)))
+        feature_indices += list(range(7))
     if 'area' in feature_type:
         feature_indices.append(7)
     if 'aspect' in feature_type:
         feature_indices.append(8)
     if 'color' in feature_type:
-        feature_indices.append(list(range(9, 12)))
+        feature_indices += list(range(9, 12))
     if 'length' in feature_type:
         feature_indices.append(12)
-    features = [f[feature_indices] for f in features]
-    features = np.array(features)
-    if len(features.shape) == 1:
-        features = np.expand_dims(features, axis=1)
-    return features
+    feature_array = []
+    for f in features:
+        individual_feature = []
+        for index in feature_indices:
+            individual_feature.append(f[index])
+        feature_array.append(individual_feature)
+    # features = [f[feature_indices] for f in features]
+    feature_array = np.array(feature_array)
+    if len(feature_array.shape) == 1:
+        feature_array = np.expand_dims(feature_array, axis=1)
+    return feature_array
 
 
-def parse_cv_image_features(feature_type='all'):
+def parse_cv_image_features():
     sorted_files = [f for f in os.listdir("stored_images") if "csv" in f]
-    with open(os.path.join(r"stored_images", sorted_files[-1]), 'r', newline=';') as file:
+    with open(os.path.join(r"stored_images", sorted_files[-1]), 'r', newline='') as file:
         reader = csv.reader(file)
         data_paths = []
         features = []
@@ -245,7 +255,7 @@ def parse_cv_image_features(feature_type='all'):
             feature_str = row[1].replace("\n", ",")
             feature = ast.literal_eval(feature_str)
             features.append(feature)
-    features = select_features(features, feature_type=feature_type)
+    # features = select_features(features, feature_type=feature_type)
     return data_paths, features
 
 
