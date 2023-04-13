@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from cri.transforms import quat2axangle, axangle2quat, quat2mat, mat2quat, \
+from modules.cri.transforms import quat2axangle, axangle2quat, quat2mat, mat2quat, \
     mat2euler, quat2euler, euler2quat, transform, inv_transform
 
 try:

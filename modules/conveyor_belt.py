@@ -14,34 +14,30 @@ class ConveyorBelt:
                 break
         if arduino_port == "":
             raise ConnectionError("[ERROR] Conveyor port could not be found!")
-        self.serial_connection = serial.Serial(arduino_port, 115200)
+        self.serial_connection = serial.Serial(arduino_port, 9600)
         self.running = False
         time.sleep(2)  # Seems necessary for serial connection to establish correctly
 
     def start(self):
         self.running = True
         # Set direction to forward and start the conveyor
-        self.serial_connection.write(b'r\n')
-        self.serial_connection.write(b'1\n')
-        for i in range(10):
-            time.sleep(0.05)
-            self.serial_connection.write(b'+\n')
+        self.serial_connection.write(b'+')
 
     def start_reversed(self):
         self.running = True
         # Set direction to backward and start the conveyor
-        self.serial_connection.write(b'l\n')
-        self.serial_connection.write(b'1\n')
+        self.serial_connection.write(b'-')
 
     def is_running(self):
         return self.running
 
-    def speed_up(self):
-        self.serial_connection.write(b'+\n')
-
     def stop(self):
         self.running = False
         self.serial_connection.write(b'0\n')
+
+    def activate_manual_control(self):
+        self.running = False
+        self.serial_connection.write(b'a\n')
 
     def disconnect(self):
         self.running = False

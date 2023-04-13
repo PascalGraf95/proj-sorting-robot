@@ -2,7 +2,6 @@ from modules.cri.robot import AsyncRobot
 from modules.cri_dobot.robot import SyncDobot
 from modules.cri_dobot.controller import dobotMagicianController
 from datetime import datetime
-from cri_dobot.dobotMagician.dll_files import DobotDllType as dType
 
 import time
 import numpy as np

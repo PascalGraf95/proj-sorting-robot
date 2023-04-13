@@ -2,7 +2,7 @@ from sklearn.decomposition import PCA
 
 
 class PCAReduction:
-    def __init__(self, dims=2):
+    def __init__(self, dims=3):
         self.pca = PCA(n_components=dims)
 
     def fit_to_data(self, data):

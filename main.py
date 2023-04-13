@@ -2,7 +2,8 @@ from modules.camera_controller import IDSCameraController, WebcamCameraControlle
 from modules.image_processing import *
 from modules.dimensionality_reduction import PCAReduction
 from modules.data_handling import *
-from modules.clustering_algorithms import KMeansClustering
+from modules.clustering_algorithms import KMeansClustering, DBSCANClustering, MeanShiftClustering, \
+    AgglomerativeClusteringAlgorithm, SpectralClusteringAlgorithm, OpticsClusteringAlgorithm
 from modules.robot_controller import DoBotRobotController
 from modules.conveyor_belt import ConveyorBelt
 from modules.misc import *
@@ -106,19 +107,19 @@ def clustering_phase(feature_method="cv_image_features", feature_type='all'):
         return
 
     pca = None
-    if image_features.shape[1] > 2:
-        pca = PCAReduction(dims=2)
+    if image_features.shape[1] > 3:
+        pca = PCAReduction(dims=3)
         reduced_features = pca.fit_to_data(image_features)
     else:
         reduced_features = image_features
 
-    kmeans = KMeansClustering('auto')
-    labels = kmeans.fit_to_data(reduced_features)
+    clustering_algorithm = DBSCANClustering('auto')
+    labels = clustering_algorithm.fit_to_data(reduced_features)
 
     if len(reduced_features.shape) > 1:
         plot_clusters(reduced_features, labels)
     show_cluster_images(image_array, labels)
-    return pca, kmeans
+    return pca, clustering_algorithm
 
 
 def test_camera_image(cam):
@@ -143,7 +144,6 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
-            print("[INFO] Preprocessing Image and Getting Objects")
             # Preprocess image and extract objects
             preprocessed_image = image_preprocessing(image)
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
@@ -152,8 +152,6 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
             # Stop the conveyor if an object is inside picking range and if the robot is ready to pick it up.
             # Force stop if the robot currently is in maneuvering position or when an object is about to leave
             # the camera frame.
-
-            print("[INFO] Checking for Conveyor Conditions")
             if check_conveyor_force_stop_condition(object_dictionary) or \
                     check_conveyor_soft_stop_condition(object_dictionary, robot):
                 conveyor_belt.stop()
@@ -162,12 +160,10 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
                     conveyor_belt.start()
 
             if not conveyor_belt.is_running() and robot.get_robot_state() == 0:
-                print("[INFO] Getting Object Picking Position")
                 # Get the first object which is the one furthest to the left on the conveyor.
                 position, angle, index = get_next_object_to_grab(object_dictionary)
                 # Transform its position into the robot coordinate system.
                 position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
-                print("[INFO] Approaching and Picking Object")
                 # Approach its position and pick it up.
                 robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
                 robot.pick_item()
@@ -175,7 +171,6 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
                     # Choose the storage number, start the synchronous or asynchronous deposit process.
                     n_storage = np.random.randint(0, 10)
                 else:
-                    print("[INFO] Clustering Object")
                     image_features = extract_features(contours, rectangles, object_images, store_features=False)
                     image_features = select_features(image_features, feature_type=feature_type)
                     if reduction_algorithm:
@@ -188,7 +183,6 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
                     # Finally return to the robot standby position.
                     robot.approach_standby_position()
                 else:
-                    print("[INFO] Starting Deposit")
                     robot.async_deposit_process(start_process=True, n_storage=n_storage)
 
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
@@ -197,7 +191,6 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
             if show_image(canvas_image, wait_for_ms=(interval * 1000) // 3):
                 break
         if mode == "async":
-            print("[INFO] Checking Async and Continuing Deposit")
             robot.async_deposit_process()
     print("[INFO] Finished sorting data!")
     conveyor_belt.stop()
@@ -217,17 +210,17 @@ def main():
     # calibrate_robot()
     # test_camera_image()
     calc_transformation_matrices()
-    robot = DoBotRobotController()
-    conveyor_belt = ConveyorBelt()
-    cam = IDSCameraController()
-    cam.capture_image()
-    time.sleep(0.5)
+    # robot = DoBotRobotController()
+    # conveyor_belt = ConveyorBelt()
+    # cam = IDSCameraController()
+    # cam.capture_image()
+    # time.sleep(0.5)
 
-    data_collection_phase(cam, conveyor_belt, interval=1)
-    feature_type = "length_color"
+    # data_collection_phase(cam, conveyor_belt, interval=1)
+    feature_type = "length_aspect_area"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
-    sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
-                  reduction_algorithm=reduction_algorithm, feature_type=feature_type)
+    # sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
+    #               reduction_algorithm=reduction_algorithm, feature_type=feature_type)
 
     robot.disconnect_robot()
     conveyor_belt.disconnect()

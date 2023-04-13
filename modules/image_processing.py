@@ -151,7 +151,9 @@ def extract_and_filter_contours(image, min_area=600, smaller_image_area=False):
                 # Contour bounding box cannot touch the image borders
                 x, y, w, h = cv2.boundingRect(c)
                 if smaller_image_area:
-                    if x > 400 and y > 50 and x+w < image.shape[1]-400 and y+h < image.shape[0]-50:
+                    x_lim = 600
+                    y_lim = 50
+                    if x > x_lim and y > y_lim and x+w < image.shape[1]-x_lim and y+h < image.shape[0]-y_lim:
                         filtered_contours.append(c)
                 else:
                     if x > 0 and y > 0 and x+w < image.shape[1] and y+h < image.shape[0]:
