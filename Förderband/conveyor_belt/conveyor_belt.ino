@@ -66,6 +66,7 @@ void setup()
   executeMotorTest();
 
   // Interrupts
+  /*
   noInterrupts();           // deactivate Interrupts
   TCCR1A = 0;
   TCCR1B = 0;
@@ -73,6 +74,7 @@ void setup()
   TCCR1B |= (1 << CS12);    // 256 als Prescale-Wert spezifizieren
   TIMSK1 |= (1 << TOIE1);   // Timer Overflow Interrupt aktivieren
   interrupts();             // activate Interrupts
+  */
 }
 
 //  |-------------------------------------------------------------------------|
@@ -101,7 +103,7 @@ void loop()
 
 void executeCommand(String cmdString) 
 {
-  char motorCommandByte = cmdString[0];  
+  char motorCommandByte = cmdString[0];
   switch(motorCommandByte) 
   {
     // Switch back to manual control
@@ -118,6 +120,7 @@ void executeCommand(String cmdString)
     // Motor Right Slow
     case 'r':
       setMotorSpeedRight(motorRightSlowValue);
+      break;
     // Motor Left Fast
     case '-':
       setMotorSpeedLeft(motorLeftFastValue);
@@ -125,6 +128,7 @@ void executeCommand(String cmdString)
     // Motor Left Slow
     case 'l':
       setMotorSpeedLeft(motorLeftSlowValue);
+      break;
   }      
 }
 
@@ -187,11 +191,13 @@ String receiveCommandString()
 }
 
 void executeMotorTest(void)
-{  
+{ 
   setMotorSpeedRight(motorRightFastValue);
-  delay(500);
-  setMotorSpeedRight(motorLeftFastValue); 
-  delay(500);
+  delay(1000);
+  stopMotor();
+  delay(1000);
+  setMotorSpeedLeft(motorLeftFastValue); 
+  delay(1000);
   stopMotor();  
 }
 

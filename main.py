@@ -45,7 +45,7 @@ def get_object_angles(rectangles):
     return object_dictionary
 
 
-def check_conveyor_force_stop_condition(object_dictionary, min_x_val=400):
+def check_conveyor_force_stop_condition(object_dictionary, min_x_val=500):
     for key, val in object_dictionary.items():
         if val[0][0] <= min_x_val:
             return True
@@ -97,7 +97,7 @@ def data_collection_phase(cam, conveyor_belt, interval=1.0):
     print("Finished collecting data!")
 
 
-def clustering_phase(feature_method="cv_image_features", feature_type='all'):
+def clustering_phase(feature_method="cv_image_features", feature_type='all', reduction_to=2):
     if feature_method == "cv_image_features":
         data_paths, image_features = parse_cv_image_features()
         image_features = select_features(image_features, feature_type=feature_type)
@@ -107,13 +107,13 @@ def clustering_phase(feature_method="cv_image_features", feature_type='all'):
         return
 
     pca = None
-    if image_features.shape[1] > 3:
-        pca = PCAReduction(dims=3)
+    if image_features.shape[1] > reduction_to:
+        pca = PCAReduction(dims=reduction_to)
         reduced_features = pca.fit_to_data(image_features)
     else:
         reduced_features = image_features
 
-    clustering_algorithm = DBSCANClustering('auto')
+    clustering_algorithm = KMeansClustering('auto')
     labels = clustering_algorithm.fit_to_data(reduced_features)
 
     if len(reduced_features.shape) > 1:
@@ -127,7 +127,8 @@ def test_camera_image(cam):
         image = cam.capture_image()
         preprocessed_image = image_preprocessing(image)
         preprocessed_image2 = image_thresholding_stack(preprocessed_image)
-        contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
+        contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
+                                                                                                smaller_image_area=True)
         _ = extract_features(contours, rectangles, object_images, store_features=False)
         canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
 
@@ -210,17 +211,18 @@ def main():
     # calibrate_robot()
     # test_camera_image()
     calc_transformation_matrices()
-    # robot = DoBotRobotController()
-    # conveyor_belt = ConveyorBelt()
-    # cam = IDSCameraController()
-    # cam.capture_image()
-    # time.sleep(0.5)
+    robot = DoBotRobotController()
+    conveyor_belt = ConveyorBelt()
+    cam = IDSCameraController()
+    cam.capture_image()
+    time.sleep(0.5)
+    # test_camera_image(cam)
 
     # data_collection_phase(cam, conveyor_belt, interval=1)
-    feature_type = "length_aspect_area"
+    feature_type = "length_aspect_color"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
-    # sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
-    #               reduction_algorithm=reduction_algorithm, feature_type=feature_type)
+    sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
+                  reduction_algorithm=reduction_algorithm, feature_type=feature_type)
 
     robot.disconnect_robot()
     conveyor_belt.disconnect()

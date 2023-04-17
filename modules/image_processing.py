@@ -124,14 +124,14 @@ def print_mouse_position(event, x, y, flags, param):
 
 
 def image_thresholding_stack(image):
-    image = cv2.medianBlur(image, 7)
+    image = cv2.medianBlur(image, 9)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 17, 3)
+    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 19, 3)
     image = cv2.bitwise_not(image)
     kernel = np.ones((3, 3), np.uint8)
     image = cv2.erode(image, kernel, iterations=1)
     kernel = np.ones((5, 5), np.uint8)
-    image = cv2.dilate(image, kernel, iterations=2)
+    image = cv2.dilate(image, kernel, iterations=3)
     return image
 
 
@@ -151,7 +151,7 @@ def extract_and_filter_contours(image, min_area=600, smaller_image_area=False):
                 # Contour bounding box cannot touch the image borders
                 x, y, w, h = cv2.boundingRect(c)
                 if smaller_image_area:
-                    x_lim = 600
+                    x_lim = 500
                     y_lim = 50
                     if x > x_lim and y > y_lim and x+w < image.shape[1]-x_lim and y+h < image.shape[0]-y_lim:
                         filtered_contours.append(c)
