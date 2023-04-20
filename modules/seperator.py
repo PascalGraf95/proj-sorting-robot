@@ -20,11 +20,11 @@ class Seperator:
 
     def start(self):
         self.running = True
-        self.serial_connection.write(serial.to_bytes(b'1'))
+        self.serial_connection.write(b'\x01')
 
     def stop(self):
         self.running = False
-        self.serial_connection.write(b'2')
+        self.serial_connection.write(b'\x02')
 
     def disconnect(self):
         self.running = False
@@ -34,3 +34,5 @@ class Seperator:
 if __name__ == '__main__':
     seperator = Seperator()
     seperator.start()
+    time.sleep(5)
+    seperator.stop()
