@@ -218,7 +218,7 @@ def main():
     time.sleep(0.5)
     # test_camera_image(cam)
 
-    # data_collection_phase(cam, conveyor_belt, interval=1)
+    data_collection_phase(cam, conveyor_belt, interval=1)
     feature_type = "length_aspect_color"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
     sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
