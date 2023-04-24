@@ -20,10 +20,10 @@ class DoBotRobotController:
         self.work_frame = work_frame
 
         # Set conveyor height and maneuvering height in work frame coordinates
-        self.conveyor_height = -59
+        self.conveyor_height = -59.5
         self.maneuvering_height = -20
         self.standby_height = 60
-        self.standby_position_right = (-80, 210, self.maneuvering_height, 0, 0, 0)
+        self.standby_position_right = (-40, 190, self.maneuvering_height, 0, 0, 0)
         self.standby_position_left = (-20, -190, self.maneuvering_height, 0, 0, 0)
 
         # Robot States for Async Maneuvering
@@ -95,8 +95,8 @@ class DoBotRobotController:
         current_pose = self.get_pose()
         current_pose = np.array(current_pose)
         # positional_difference_left = ((current_pose[:3] - np.array((-20, -60, self.standby_height)))**2).mean()
-        positional_difference_left = ((current_pose[:3] - np.array((-20, -190, self.maneuvering_height))) ** 2).mean()
-        positional_difference_right = ((current_pose[:3] - np.array((-80, 210, self.maneuvering_height))) ** 2).mean()
+        positional_difference_left = ((current_pose[:3] - self.standby_position_left[:3]) ** 2).mean()
+        positional_difference_right = ((current_pose[:3] - self.standby_position_right[:3]) ** 2).mean()
         if positional_difference_left < 10 or positional_difference_right < 10:
             return True
         return False

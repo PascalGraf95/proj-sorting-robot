@@ -153,11 +153,11 @@ def extract_and_filter_contours(image, min_area=600, smaller_image_area=False):
                 if smaller_image_area:
                     x_lim = 500
                     y_lim = 50
-                    if x > x_lim and y > y_lim and x+w < image.shape[1]-x_lim and y+h < image.shape[0]-y_lim:
-                        filtered_contours.append(c)
                 else:
-                    if x > 0 and y > 0 and x+w < image.shape[1] and y+h < image.shape[0]:
-                        filtered_contours.append(c)
+                    x_lim = 100
+                    y_lim = 50
+                if x > x_lim and y > y_lim and x+w < image.shape[1]-x_lim and y+h < image.shape[0]-y_lim:
+                    filtered_contours.append(c)
     return filtered_contours
 
 

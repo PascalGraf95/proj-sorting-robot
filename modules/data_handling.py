@@ -28,10 +28,13 @@ def load_images_from_path_list(path_list, target_size=(224, 224)):
 
 
 def plot_clusters(data, labels):
+    min_point = np.min(data)
+    max_point = np.max(data)
     if data.shape[1] == 3:
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
         ax.scatter(data[:, 0], data[:, 1], data[:, 2], c=labels)
+        ax.set_aspect('equal', adjustable='box')
     else:
         fig = plt.figure()
         ax = fig.add_subplot()
@@ -40,6 +43,7 @@ def plot_clusters(data, labels):
         else:
             x_data = np.zeros(data.shape[0])
             ax.plot(x_data, data[:, 0], c=labels)
+        ax.set_aspect('equal', adjustable='box')
     plt.show()
 
 
