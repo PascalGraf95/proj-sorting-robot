@@ -8,6 +8,7 @@ from modules.robot_controller import DoBotRobotController
 from modules.conveyor_belt import ConveyorBelt
 from modules.misc import *
 import numpy as np
+from skimage.feature import hog
 import time
 import os
 
@@ -102,6 +103,13 @@ def clustering_phase(feature_method="cv_image_features", feature_type='all', red
         data_paths, image_features = parse_cv_image_features()
         image_features = select_features(image_features, feature_type=feature_type)
         image_array = load_images_from_path_list(data_paths)
+        if feature_type == "hog":
+            image_features = []
+            for image in image_array:
+                fd = hog(image, orientations=9, pixels_per_cell=(16, 16),
+                        cells_per_block=(2, 2), channel_axis=-1, feature_vector=True)
+                image_features.append(fd)
+            image_features = np.array(image_features)
     else:
         print("Not implemented yet")
         return
@@ -211,15 +219,15 @@ def main():
     # calibrate_robot()
     # test_camera_image()
     calc_transformation_matrices()
-    robot = DoBotRobotController()
-    conveyor_belt = ConveyorBelt()
-    cam = IDSCameraController()
-    cam.capture_image()
-    time.sleep(0.5)
+    #robot = DoBotRobotController()
+    #conveyor_belt = ConveyorBelt()
+    #cam = IDSCameraController()
+    #cam.capture_image()
+    #time.sleep(0.5)
     # test_camera_image(cam)
 
     # data_collection_phase(cam, conveyor_belt, interval=1)
-    feature_type = "aspect_length_color"
+    feature_type = "hog"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=2)
     sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
                   reduction_algorithm=reduction_algorithm, feature_type=feature_type)

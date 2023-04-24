@@ -1,7 +1,7 @@
 from sklearn.cluster import KMeans, DBSCAN, MeanShift, SpectralClustering, AgglomerativeClustering, OPTICS
 from sklearn.metrics import silhouette_score
 import numpy as np
-from modules.misc import *
+from modules.misc import get_affinity_matrix, eigen_decomposition
 
 
 class ClusteringAlgorithm:
