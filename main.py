@@ -220,7 +220,7 @@ def main():
 
     # data_collection_phase(cam, conveyor_belt, interval=1)
     feature_type = "aspect_length_color"
-    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=3)
+    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=2)
     sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
                   reduction_algorithm=reduction_algorithm, feature_type=feature_type)
 
