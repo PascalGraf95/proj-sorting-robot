@@ -39,14 +39,6 @@ class DoBotRobotController:
         self.robot.linear_speed = linear_speed
         self.robot.angular_speed = angular_speed
 
-        # Initialize Homing process
-        self.execute_homing()
-        # Release Item
-        self.robot.release()
-
-        # Move to standby position
-        self.approach_standby_position()
-
     # region --- Connection and Initialization ---
     @staticmethod
     def connect_robot():
@@ -64,6 +56,14 @@ class DoBotRobotController:
     def disconnect_robot(self):
         # Shutdown and disconnect from the usb port
         self.robot.close()
+
+    def homing_process(self):
+        # Initialize Homing process
+        self.execute_homing()
+        # Release Item
+        self.robot.release()
+        # Move to standby position
+        self.approach_standby_position()
 
     def execute_homing(self, homing_position=(100, -220, 80, 0, 0, 0)):
         # Set base frame for storing home position

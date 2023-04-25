@@ -4,6 +4,7 @@ import os
 from datetime import date, datetime
 import csv
 import ast
+from skimage.feature import hog
 
 date_str = ""
 
@@ -215,6 +216,30 @@ def store_images_and_image_features(image_list, hu_moments_list):
             cv2.imwrite(os.path.join(dir_path, file_name), image)
             writer.writerow([os.path.join(dir_path, file_name), hu_moments])
             files_in_dir += 1
+
+
+def get_hog_features(image_array):
+    image_features = []
+    for image in image_array:
+        fd = hog(image, orientations=9, pixels_per_cell=(16, 16),
+                 cells_per_block=(2, 2), channel_axis=-1, feature_vector=True)
+        image_features.append(fd)
+    return np.array(image_features)
+
+
+def apply_edge_detection(image_array):
+    image_features = []
+    for image in image_array:
+        image = image.astype(np.uint8)
+        grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # dst = cv2.cornerHarris(grayscale_image, 2, 3, 0.04)
+        edge_image = cv2.Canny(grayscale_image, 50, 100)
+        edge_image = cv2.dilate(edge_image, kernel=None)
+        contours, hierarchy = cv2.findContours(edge_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        image = cv2.drawContours(image, contours, 2, (0, 255, 0), 3)
+
+        show_image_once(edge_image)
+    return np.array(image_features)
 
 
 def select_features(features, feature_type='all'):

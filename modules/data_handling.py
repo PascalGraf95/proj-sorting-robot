@@ -4,6 +4,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+feature_maxima = []
+feature_minima = []
+
 
 def load_images_from_path(path, target_size=(224, 224)):
     image_list = []
@@ -46,6 +49,20 @@ def plot_clusters(data, labels):
         ax.set_aspect('equal', adjustable='box')
     plt.show()
 
+
+def preprocess_features(data, reference_data=False, preprocessing="rescaling"):
+    global feature_minima, feature_maxima
+    if reference_data:
+        for a in range(data.shape[1]):
+            feature_minima.append(np.min(data[:, a]))
+            feature_maxima.append(np.max(data[:, a]))
+    if preprocessing == "rescaling":
+        for idx, a in enumerate(range(data.shape[1])):
+            data[:, a] /= feature_maxima[idx]
+    elif preprocessing == "normalization":
+        for idx, a in enumerate(range(data.shape[1])):
+            data[:, a] = (data[:, a] - feature_minima[idx])/(feature_maxima[idx] - feature_minima[idx])
+    return data
 
 def show_cluster_images(data, labels):
     num_samples = data.shape[0]

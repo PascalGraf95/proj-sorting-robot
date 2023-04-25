@@ -20,16 +20,16 @@ class KMeansClustering(ClusteringAlgorithm):
         super().__init__(num_clusters)
         self.kmeans = None
 
-    def fit_to_data(self, data, min_clusters=3):
+    def fit_to_data(self, data, min_clusters=3, max_clusters=7):
         if self.num_clusters == 'auto':
             scores = []
-            for k in range(min_clusters, 10):
+            for k in range(min_clusters, max_clusters+1):
                 kmeans = KMeans(n_clusters=k, n_init='auto')
                 kmeans.fit(data)
                 labels = kmeans.labels_
                 scores.append(silhouette_score(data, labels, metric='euclidean'))
 
-            optimal_cluster_num = list(range(min_clusters, 10))[np.argmax(scores)]
+            optimal_cluster_num = list(range(min_clusters, max_clusters+1))[np.argmax(scores)]
             print("Optimal Cluster Number is: {}".format(optimal_cluster_num))
             self.kmeans = KMeans(n_clusters=optimal_cluster_num, n_init='auto')
         self.kmeans.fit(data)

@@ -8,23 +8,7 @@ from modules.robot_controller import DoBotRobotController
 from modules.conveyor_belt import ConveyorBelt
 from modules.misc import *
 import numpy as np
-from skimage.feature import hog
 import time
-import os
-
-
-def optimize_images_and_store(input_path, output_path):
-    num_of_images = len(os.listdir(input_path))
-    for idx, file_name in enumerate(os.listdir(input_path)):
-        if not file_name.endswith((".jpg", ".jpeg", ".png", ".bmp")):
-            continue
-        image = cv2.imread(os.path.join(input_path, file_name))
-
-        mean_vals = get_mean_patch_value(image)
-        balanced_image = correct_image_white_balance(image, get_white_balance_parameters(mean_vals, 'min'))
-        equalized_image = equalize_histograms(balanced_image, True, clip_limit=1.8, tile_grid_size=(8, 8))
-        cv2.imwrite(os.path.join(output_path, file_name), equalized_image)
-        print("Converted Image {} from {}".format(idx+1, num_of_images))
 
 
 def extract_features(contours, rectangles, object_images, store_features=True):
@@ -98,18 +82,15 @@ def data_collection_phase(cam, conveyor_belt, interval=1.0):
     print("Finished collecting data!")
 
 
-def clustering_phase(feature_method="cv_image_features", feature_type='all', reduction_to=2):
+def clustering_phase(feature_method="cv_image_features", feature_type='all', reduction_to=2, preprocessing="rescaling"):
     if feature_method == "cv_image_features":
         data_paths, image_features = parse_cv_image_features()
-        image_features = select_features(image_features, feature_type=feature_type)
         image_array = load_images_from_path_list(data_paths)
         if feature_type == "hog":
-            image_features = []
-            for image in image_array:
-                fd = hog(image, orientations=9, pixels_per_cell=(16, 16),
-                        cells_per_block=(2, 2), channel_axis=-1, feature_vector=True)
-                image_features.append(fd)
-            image_features = np.array(image_features)
+            image_features = get_hog_features(image_array)
+        else:
+            image_features = select_features(image_features, feature_type=feature_type)
+        image_features = preprocess_features(image_features, reference_data=True, preprocessing=preprocessing)
     else:
         print("Not implemented yet")
         return
@@ -124,10 +105,24 @@ def clustering_phase(feature_method="cv_image_features", feature_type='all', red
     clustering_algorithm = KMeansClustering('auto')
     labels = clustering_algorithm.fit_to_data(reduced_features)
 
-    if len(reduced_features.shape) > 1:
-        plot_clusters(reduced_features, labels)
-    show_cluster_images(image_array, labels)
+    # if len(reduced_features.shape) > 1:
+    #     plot_clusters(reduced_features, labels)
+    # show_cluster_images(image_array, labels)
     return pca, clustering_algorithm
+
+
+def parse_and_preprocess_features(feature_method="cv_image_features", feature_type='all'):
+    if feature_method == "cv_image_features":
+        data_paths, image_features = parse_cv_image_features()
+        image_array = load_images_from_path_list(data_paths)
+        if feature_type == "hog":
+            image_features = get_hog_features(image_array)
+        else:
+            image_features = select_features(image_features, feature_type=feature_type)
+        image_features = preprocess_features(image_features, reference_data=True, preprocessing=preprocessing)
+    else:
+        print("Not implemented yet")
+    return image_features
 
 
 def test_camera_image(cam):
@@ -147,7 +142,7 @@ def test_camera_image(cam):
 
 
 def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clustering_algorithm=None,
-                  reduction_algorithm=None, feature_type="all"):
+                  reduction_algorithm=None, feature_type="all", preprocessing="rescaling"):
     # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
     while True:
@@ -182,6 +177,7 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
                 else:
                     image_features = extract_features(contours, rectangles, object_images, store_features=False)
                     image_features = select_features(image_features, feature_type=feature_type)
+                    image_features = preprocess_features(image_features, preprocessing=preprocessing)
                     if reduction_algorithm:
                         image_features = reduction_algorithm.predict(image_features)
                     n_storage = clustering_algorithm.predict(image_features)[index]
@@ -227,10 +223,12 @@ def main():
     # test_camera_image(cam)
 
     # data_collection_phase(cam, conveyor_belt, interval=1)
-    feature_type = "hog"
-    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=2)
+    feature_type = "area_aspect_length_color"
+    preprocessing = "normalization"
+    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=3,
+                                                                 preprocessing=preprocessing)
     sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
-                  reduction_algorithm=reduction_algorithm, feature_type=feature_type)
+                  reduction_algorithm=reduction_algorithm, feature_type=feature_type, preprocessing=preprocessing)
 
     robot.disconnect_robot()
     conveyor_belt.disconnect()
