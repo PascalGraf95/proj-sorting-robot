@@ -105,13 +105,13 @@ def clustering_phase(feature_method="cv_image_features", feature_type='all', red
     clustering_algorithm = KMeansClustering('auto')
     labels = clustering_algorithm.fit_to_data(reduced_features)
 
-    # if len(reduced_features.shape) > 1:
-    #     plot_clusters(reduced_features, labels)
-    # show_cluster_images(image_array, labels)
+    if len(reduced_features.shape) > 1:
+        plot_clusters(reduced_features, labels)
+    show_cluster_images(image_array, labels)
     return pca, clustering_algorithm
 
 
-def parse_and_preprocess_features(feature_method="cv_image_features", feature_type='all'):
+def parse_and_preprocess_features(feature_method="cv_image_features", feature_type='all', preprocessing='normalize'):
     if feature_method == "cv_image_features":
         data_paths, image_features = parse_cv_image_features()
         image_array = load_images_from_path_list(data_paths)

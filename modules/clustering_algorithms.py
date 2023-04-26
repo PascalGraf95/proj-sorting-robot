@@ -20,7 +20,7 @@ class KMeansClustering(ClusteringAlgorithm):
         super().__init__(num_clusters)
         self.kmeans = None
 
-    def fit_to_data(self, data, min_clusters=3, max_clusters=7):
+    def fit_to_data(self, data, min_clusters=3, max_clusters=8):
         if self.num_clusters == 'auto':
             scores = []
             for k in range(min_clusters, max_clusters+1):
@@ -40,21 +40,20 @@ class KMeansClustering(ClusteringAlgorithm):
 
 
 class DBSCANClustering(ClusteringAlgorithm):
-    def __init__(self, num_clusters, eps=1):
+    def __init__(self, num_clusters, eps=0.12):
         super().__init__(num_clusters)
         self.eps = eps
         self.dbscan = None
         self.data = None
 
-    def fit_to_data(self, data, min_clusters=3):
+    def fit_to_data(self, data, min_clusters=3, max_clusters=8):
         min_samples_per_cluster = int(data.shape[0] * 0.02)
-        print(min_samples_per_cluster)
         while True:
             self.dbscan = DBSCAN(eps=self.eps, min_samples=min_samples_per_cluster)
             self.dbscan.fit(data)
             num_clusters = np.unique(self.dbscan.labels_).shape[0]
             num_minus_one = np.where(self.dbscan.labels_ == -1)[0].shape[0]
-            if num_minus_one / data.shape[0] < 0.2:
+            if num_minus_one / data.shape[0] < 0.2 and min_clusters <= num_clusters <= max_clusters:
                 break
             else:
                 self.eps *= 1.1
@@ -89,7 +88,7 @@ class MeanShiftClustering(ClusteringAlgorithm):
         return self.meanShift.predict(data)
 
 
-class OpticsClusteringAlgorithm(ClusteringAlgorithm):
+class OpticsClustering(ClusteringAlgorithm):
     def __init__(self, num_clusters):
         super().__init__(num_clusters)
         self.optics = None
@@ -131,7 +130,6 @@ class AgglomerativeClusteringAlgorithm(ClusteringAlgorithm):
 
     def fit_to_data(self, data, min_clusters=3):
         while True:
-
             self.agglomerativeClustering = AgglomerativeClustering(n_clusters=None, distance_threshold=self.threshold)
             self.agglomerativeClustering.fit(data)
             num_clusters = np.unique(self.agglomerativeClustering.labels_).shape[0]

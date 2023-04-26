@@ -242,50 +242,6 @@ def apply_edge_detection(image_array):
     return np.array(image_features)
 
 
-def select_features(features, feature_type='all'):
-    # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, area, aspect, color, color, color, length]
-    # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,  7  ,   8   ,   9  ,   10 ,   11 ,   12  ]
-    feature_indices = []
-    if 'all' in feature_type:
-        feature_indices += list(range(13))
-    if 'hu' in feature_type:
-        feature_indices += list(range(7))
-    if 'area' in feature_type:
-        feature_indices.append(7)
-    if 'aspect' in feature_type:
-        feature_indices.append(8)
-    if 'color' in feature_type:
-        feature_indices += list(range(9, 12))
-    if 'length' in feature_type:
-        feature_indices.append(12)
-    feature_array = []
-    for f in features:
-        individual_feature = []
-        for index in feature_indices:
-            individual_feature.append(f[index])
-        feature_array.append(individual_feature)
-    # features = [f[feature_indices] for f in features]
-    feature_array = np.array(feature_array)
-    if len(feature_array.shape) == 1:
-        feature_array = np.expand_dims(feature_array, axis=1)
-    return feature_array
-
-
-def parse_cv_image_features():
-    sorted_files = [f for f in os.listdir("stored_images") if "csv" in f]
-    with open(os.path.join(r"stored_images", sorted_files[-1]), 'r', newline='') as file:
-        reader = csv.reader(file)
-        data_paths = []
-        features = []
-        for row in reader:
-            data_paths.append(row[0])
-            feature_str = row[1].replace("\n", ",")
-            feature = ast.literal_eval(feature_str)
-            features.append(feature)
-    # features = select_features(features, feature_type=feature_type)
-    return data_paths, features
-
-
 def calculate_hu_moments_from_contours(contours):
     hu_moments_list = []
     for c in contours:
