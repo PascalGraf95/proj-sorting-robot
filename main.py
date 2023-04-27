@@ -165,10 +165,10 @@ def main():
     calc_transformation_matrices()
     #robot = DoBotRobotController()
     #conveyor_belt = ConveyorBelt()
-    #cam = IDSCameraController()
-    #cam.capture_image()
-    #time.sleep(0.5)
-    # test_camera_image(cam)
+    cam = IDSCameraController()
+    cam.capture_image()
+    time.sleep(0.5)
+    test_camera_image(cam)
 
     # data_collection_phase(cam, conveyor_belt, interval=1)
     feature_type = "area_aspect_length_color"
