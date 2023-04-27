@@ -40,3 +40,4 @@ class Seperator:
 if __name__ == '__main__':
     seperator = Seperator()
     seperator.seperate_cycle(30)
+    seperator.disconnect()

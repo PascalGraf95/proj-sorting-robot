@@ -6,6 +6,7 @@ from modules.clustering_algorithms import KMeansClustering, DBSCANClustering, Me
     AgglomerativeClusteringAlgorithm, SpectralClusteringAlgorithm, OpticsClusteringAlgorithm
 from modules.robot_controller import DoBotRobotController
 from modules.conveyor_belt import ConveyorBelt
+from modules.seperator import Seperator
 from modules.misc import *
 import numpy as np
 import time
@@ -78,9 +79,11 @@ def get_next_object_to_grab(object_dictionary):
     return next_object_pos, next_object_ang, next_object_idx
 
 
-def data_collection_phase(cam, conveyor_belt, interval=1.0):
+def data_collection_phase(cam, conveyor_belt, seperator, interval=1.0):
+    print("[INFO] Start data collection phase")
     last_image_captured_ts = time.time()
     conveyor_belt.start()
+    seperator.start()
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
@@ -94,7 +97,8 @@ def data_collection_phase(cam, conveyor_belt, interval=1.0):
             if show_image(canvas_image, wait_for_ms=(interval*1000)//3):
                 break
     conveyor_belt.stop()
-    print("Finished collecting data!")
+    seperator.stop()
+    print("[INFO] Finished collecting data!")
 
 
 def clustering_phase(feature_method="cv_image_features", feature_type='all', reduction_to=2):
@@ -138,8 +142,9 @@ def test_camera_image(cam):
             break
 
 
-def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clustering_algorithm=None,
+def sorting_phase(cam, robot, conveyor_belt, seperator, interval=0.5, mode="sync", clustering_algorithm=None,
                   reduction_algorithm=None, feature_type="all"):
+    print("[INFO] Start sorting phase")
     # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
     while True:
@@ -156,9 +161,11 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
             if check_conveyor_force_stop_condition(object_dictionary) or \
                     check_conveyor_soft_stop_condition(object_dictionary, robot):
                 conveyor_belt.stop()
+                seperator.stop()
             else:
                 if not conveyor_belt.is_running():
                     conveyor_belt.start()
+                    seperator.start()
 
             if not conveyor_belt.is_running() and robot.get_robot_state() == 0:
                 # Get the first object which is the one furthest to the left on the conveyor.
@@ -213,19 +220,21 @@ def main():
     calc_transformation_matrices()
     robot = DoBotRobotController()
     conveyor_belt = ConveyorBelt()
+    seperator = Seperator()
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
     # test_camera_image(cam)
 
-    data_collection_phase(cam, conveyor_belt, interval=1)
+    data_collection_phase(cam, conveyor_belt, seperator, interval=1)
     feature_type = "length_aspect_color"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
-    sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
+    sorting_phase(cam, robot, conveyor_belt, seperator, mode="async", clustering_algorithm=clustering_algorithm,
                   reduction_algorithm=reduction_algorithm, feature_type=feature_type)
 
     robot.disconnect_robot()
     conveyor_belt.disconnect()
+    seperator.disconnect()
     cam.close_camera_connection()
 
 
