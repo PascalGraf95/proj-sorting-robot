@@ -1,3 +1,5 @@
+import cv2
+
 from modules.camera_controller import IDSCameraController, WebcamCameraController
 from modules.image_processing import *
 from modules.dimensionality_reduction import PCAReduction
@@ -24,7 +26,7 @@ def optimize_images_and_store(input_path, output_path):
         balanced_image = correct_image_white_balance(image, get_white_balance_parameters(mean_vals, 'min'))
         equalized_image = equalize_histograms(balanced_image, True, clip_limit=1.8, tile_grid_size=(8, 8))
         cv2.imwrite(os.path.join(output_path, file_name), equalized_image)
-        print("Converted Image {} from {}".format(idx+1, num_of_images))
+        print("Converted Image {} from {}".format(idx + 1, num_of_images))
 
 
 def extract_features(contours, rectangles, object_images, store_features=True):
@@ -94,7 +96,7 @@ def data_collection_phase(cam, conveyor_belt, seperator, interval=1.0):
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
             last_image_captured_ts = time.time()
 
-            if show_image(canvas_image, wait_for_ms=(interval*1000)//3):
+            if show_image(canvas_image, wait_for_ms=(interval * 1000) // 3):
                 break
     conveyor_belt.stop()
     seperator.stop()
@@ -150,6 +152,7 @@ def sorting_phase(cam, robot, conveyor_belt, seperator, interval=0.5, mode="sync
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
+            cluster_nr = None
             # Preprocess image and extract objects
             preprocessed_image = image_preprocessing(image)
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
@@ -184,6 +187,7 @@ def sorting_phase(cam, robot, conveyor_belt, seperator, interval=0.5, mode="sync
                     if reduction_algorithm:
                         image_features = reduction_algorithm.predict(image_features)
                     n_storage = clustering_algorithm.predict(image_features)[index]
+                    cluster_nr = n_storage
                 if mode == "sync":
                     # Then move to the respective storage and release it.
                     robot.approach_storage(n_storage)
@@ -194,6 +198,9 @@ def sorting_phase(cam, robot, conveyor_belt, seperator, interval=0.5, mode="sync
                     robot.async_deposit_process(start_process=True, n_storage=n_storage)
 
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+            if cluster_nr is not None:
+                canvas_image = cv2.putText(canvas_image, "#{}".format(cluster_nr), (int(position[0]), int(position[1])),
+                                           fontScale=4, fontFace=cv2.FONT_HERSHEY_DUPLEX, color=(0, 0, 255))
             last_image_captured_ts = time.time()
 
             if show_image(canvas_image, wait_for_ms=(interval * 1000) // 3):
@@ -243,4 +250,3 @@ if __name__ == '__main__':
     # ToDo: Fix some positions leading to error
     # ToDo: Implement deep feature extractor (e.g. patch-core)
     # ToDo: Optimize Arcs
-
