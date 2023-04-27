@@ -1,4 +1,5 @@
 # from tensorflow import keras
+import cv2
 from keras.utils import img_to_array, load_img
 import os
 import numpy as np
@@ -189,7 +190,7 @@ def show_cluster_images(data, labels, max_x_images=7, max_y_images=3, plot=True)
         while True:
             random_idx = np.random.choice(images_in_label)
             if labels[random_idx] == l:
-                axes.ravel()[idx].imshow(data[random_idx])
+                axes.ravel()[idx].imshow(cv2.cvtColor(data[random_idx], cv2.COLOR_BGR2RGB))
                 axes.ravel()[idx].axis('off')
                 idx += 1
             if idx == len_x_axis * len_y_axis:
@@ -204,5 +205,61 @@ def show_cluster_images(data, labels, max_x_images=7, max_y_images=3, plot=True)
         plt.close(fig)
     return cluster_images
 
+
+def show_live_collected_images(data, max_x_images=7, max_y_images=3, plot=True):
+    if np.any(data):
+        num_images = len(data)
+        len_x_axis = np.min([int(num_images), max_x_images])
+        len_y_axis = np.min([int(num_images/len_x_axis), max_y_images])
+        if len_x_axis == 1:
+            return None
+
+        fig, axes = plt.subplots(nrows=len_y_axis, ncols=len_x_axis, figsize=(len_x_axis*3, len_y_axis*3))
+        for idx in range(num_images):
+            axes.ravel()[idx].imshow(data[idx])
+            axes.ravel()[idx].axis('off')
+
+        fig.suptitle("Detected Object Images")
+        if plot:
+            plt.show()
+        width, height = fig.get_size_inches() * fig.get_dpi()
+        fig.canvas.draw()
+        image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape((int(height), int(width), 3))
+        plt.close(fig)
+        return [image]
+    return None
+
+
+def check_conveyor_force_stop_condition(object_dictionary, min_x_val=500):
+    for key, val in object_dictionary.items():
+        if val[0][0] <= min_x_val:
+            return True
+    return False
+
+
+def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=1000):
+    if not robot.is_in_standby_position():
+        return False
+
+    for key, val in object_dictionary.items():
+        if val[0][0] <= max_x_val:
+            return True
+    return False
+
+
+def get_next_object_to_grab(object_dictionary):
+    min_x_val = np.inf
+    next_object_pos = None
+    next_object_ang = None
+    next_object_idx = None
+    idx = 0
+    for key, val in object_dictionary.items():
+        if val[0][0] <= min_x_val:
+            min_x_val = val[0][0]
+            next_object_pos = val[0]
+            next_object_ang = val[1]
+            next_object_idx = idx
+        idx += 1
+    return next_object_pos, next_object_ang, next_object_idx
 
 

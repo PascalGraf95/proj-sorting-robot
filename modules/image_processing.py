@@ -331,7 +331,36 @@ def get_image_features(object_images, contours, rectangles):
 def standardize_and_store_images_and_features(object_images, feature_list):
     standardized_images = standardize_images(object_images)
     store_images_and_image_features(standardized_images, feature_list)
+    return standardized_images
 
+
+def extract_features(contours, rectangles, object_images, store_features=True):
+    feature_list = None
+    standardized_images = None
+    if len(rectangles):
+        feature_list = get_image_features(object_images, contours, rectangles)
+        if store_features:
+            standardized_images = standardize_and_store_images_and_features(object_images, feature_list)
+    return feature_list, standardized_images
+
+
+def get_object_angles(rectangles):
+    object_dictionary = {}
+    for idx, rect in enumerate(rectangles):
+        (x, y), (width, height), angle = rect
+        if height > width:
+            angle -= 90
+        object_dictionary[idx] = ((x, y), angle)
+    return object_dictionary
+
+
+def abc(cam, ):
+    image = cam.capture_image()
+    preprocessed_image = image_preprocessing(image)
+    contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
+                                                                                            smaller_image_area=True)
+    _ = extract_features(contours, rectangles, object_images, store_features=True)
+    # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
 
 def main():
     image = cv2.imread(r"C:\Users\Drumm\OneDrive\Bilder\220101_diascan\vlcsnap-2022-01-20-16h53m03s560.jpg")

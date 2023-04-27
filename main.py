@@ -3,64 +3,12 @@ from modules.image_processing import *
 from modules.dimensionality_reduction import PCAReduction
 from modules.data_handling import *
 from modules.clustering_algorithms import KMeansClustering, DBSCANClustering, MeanShiftClustering, \
-    AgglomerativeClusteringAlgorithm, SpectralClusteringAlgorithm, OpticsClusteringAlgorithm
+    AgglomerativeClusteringAlgorithm, SpectralClusteringAlgorithm
 from modules.robot_controller import DoBotRobotController
 from modules.conveyor_belt import ConveyorBelt
 from modules.misc import *
 import numpy as np
 import time
-
-
-def extract_features(contours, rectangles, object_images, store_features=True):
-    feature_list = None
-    if len(rectangles):
-        feature_list = get_image_features(object_images, contours, rectangles)
-        if store_features:
-            standardize_and_store_images_and_features(object_images, feature_list)
-    return feature_list
-
-
-def get_object_angles(rectangles):
-    object_dictionary = {}
-    for idx, rect in enumerate(rectangles):
-        (x, y), (width, height), angle = rect
-        if height > width:
-            angle -= 90
-        object_dictionary[idx] = ((x, y), angle)
-    return object_dictionary
-
-
-def check_conveyor_force_stop_condition(object_dictionary, min_x_val=500):
-    for key, val in object_dictionary.items():
-        if val[0][0] <= min_x_val:
-            return True
-    return False
-
-
-def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=1000):
-    if not robot.is_in_standby_position():
-        return False
-
-    for key, val in object_dictionary.items():
-        if val[0][0] <= max_x_val:
-            return True
-    return False
-
-
-def get_next_object_to_grab(object_dictionary):
-    min_x_val = np.inf
-    next_object_pos = None
-    next_object_ang = None
-    next_object_idx = None
-    idx = 0
-    for key, val in object_dictionary.items():
-        if val[0][0] <= min_x_val:
-            min_x_val = val[0][0]
-            next_object_pos = val[0]
-            next_object_ang = val[1]
-            next_object_idx = idx
-        idx += 1
-    return next_object_pos, next_object_ang, next_object_idx
 
 
 def data_collection_phase(cam, conveyor_belt, interval=1.0):
@@ -175,7 +123,7 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
                     # Choose the storage number, start the synchronous or asynchronous deposit process.
                     n_storage = np.random.randint(0, 10)
                 else:
-                    image_features = extract_features(contours, rectangles, object_images, store_features=False)
+                    image_features, _ = extract_features(contours, rectangles, object_images, store_features=False)
                     image_features = select_features(image_features, feature_type=feature_type)
                     image_features = preprocess_features(image_features, preprocessing=preprocessing)
                     if reduction_algorithm:
