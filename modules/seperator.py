@@ -32,11 +32,11 @@ class Seperator:
         self.running = False
         self.serial_connection.close()
 
+    def seperate_cycle(self, time_of_cycle=5):
+        self.start()
+        time.sleep(time_of_cycle)
+        self.stop()
 
 if __name__ == '__main__':
     seperator = Seperator()
-    seperator.start()
-    time.sleep(5)
-    seperator.stop()
-    time.sleep(5)
-    seperator.start()
+    seperator.seperate_cycle(30)
