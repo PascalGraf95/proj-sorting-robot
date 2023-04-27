@@ -21,12 +21,12 @@ class Seperator:
     def start(self):
         print("Start Seperator")
         self.running = True
-        self.serial_connection.write(0x01)
+        self.serial_connection.write(b'\x01')
 
     def stop(self):
         print("Stop Seperator")
         self.running = False
-        self.serial_connection.write(0x02)
+        self.serial_connection.write(b'\x02')
 
     def disconnect(self):
         self.running = False
