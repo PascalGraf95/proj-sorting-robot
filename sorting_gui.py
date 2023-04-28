@@ -313,6 +313,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
                 if self._dim_reduction_algorithm:
                     image_features = self._dim_reduction_algorithm.predict(image_features)
                 n_storage = self._clustering_algorithm.predict(image_features)[index]
+
+                # ToDo: Insert Colered Contour for next picked item
+                # preprocessed_image = cv2.drawContours(preprocessed_image, bounding_boxes[index], -1, (255, 0, 0), 3)
+
             self.combo_cluster.setCurrentIndex(n_storage)
             # Transform its position into the robot coordinate system.
             position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
@@ -320,9 +324,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
             self._robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
             self._robot.pick_item()
             self._robot.async_deposit_process(start_process=True, n_storage=n_storage)
-
-
-
 
         self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
         self._robot.async_deposit_process()
