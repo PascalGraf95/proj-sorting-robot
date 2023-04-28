@@ -2,3 +2,4 @@ stored_images
 .idea/misc.xml
 .idea/proj-camera-controller.iml
 *.pyc
+__pycache__/

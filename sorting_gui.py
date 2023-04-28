@@ -106,8 +106,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
     def homing_dobot(self):
         self.update_status_text("Status: Homing Dobot")
         if self._robot:
-            self._robot.execute_homing()
             self._robot.release_item()
+            self._robot.execute_homing()
             self._robot.approach_standby_position()
             self._executed_homing = True
         self.update_connection_states()
@@ -244,6 +244,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         if self._camera and self._conveyor_belt:
             self.data_collection_active = True
             self._conveyor_belt.start()
+            self._seperator.start()
             self.combo_cluster.clear()
             self.data_collection_timer.start(2000)
             self.sorting_active = False
@@ -253,6 +254,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         if self._camera and self._conveyor_belt and self._robot and self._executed_homing and \
                 np.any(self.pca_cluster_image):
             self.data_collection_active = False
+            self._seperator.stop()
             self._conveyor_belt.stop()
             self.data_collection_timer.stop()
             self.sorting_active = True
@@ -260,6 +262,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
 
     def stop_active_process(self):
         if self._conveyor_belt:
+            self._seperator.stop()
             self._conveyor_belt.stop()
         self.data_collection_active = False
         self.data_collection_timer.stop()
@@ -290,10 +293,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         # the camera frame.
         if check_conveyor_force_stop_condition(object_dictionary) or \
                 check_conveyor_soft_stop_condition(object_dictionary, self._robot):
+            self._seperator.stop()
             self._conveyor_belt.stop()
         else:
             if not self._conveyor_belt.is_running():
                 self._conveyor_belt.start()
+                self._seperator.start()
 
         if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
             # Get the first object which is the one furthest to the left on the conveyor.
