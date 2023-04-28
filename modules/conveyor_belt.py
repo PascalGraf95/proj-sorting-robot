@@ -2,6 +2,7 @@ from modules.misc import serial_ports
 import serial
 import time
 
+verbose = False
 
 class ConveyorBelt:
     def __init__(self):
@@ -19,28 +20,36 @@ class ConveyorBelt:
         time.sleep(2)  # Seems necessary for serial connection to establish correctly
 
     def start(self):
+        if verbose:
+            print("[INFO] ConveyorBelt Start")
         self.running = True
         # Set direction to forward and start the conveyor
         self.serial_connection.write(b'+')
 
     def start_reversed(self):
-        self.running = True
+        if verbose:
+            print("[INFO] ConveyorBelt reverse Start")
         # Set direction to backward and start the conveyor
         self.serial_connection.write(b'-')
+        self.running = True
 
     def is_running(self):
         return self.running
 
     def stop(self):
-        self.running = False
+        if verbose:
+            print("[INFO] ConveyorBelt Stop")
         self.serial_connection.write(b'0\n')
+        self.running = False
 
     def activate_manual_control(self):
-        self.running = False
+        if verbose:
+            print("[INFO] ConveyorBelt manual control activated")
         self.serial_connection.write(b'a\n')
+        self.running = False
 
     def disconnect(self):
-        self.running = False
+        self.stop()
         self.serial_connection.close()
 
 
