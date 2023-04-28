@@ -39,13 +39,12 @@ class DoBotRobotController:
         self.robot.linear_speed = linear_speed
         self.robot.angular_speed = angular_speed
 
-        # Initialize Homing process
-        self.execute_homing()
         # Release Item
         self.robot.release()
 
-        # Move to standby position
-        self.approach_standby_position()
+        # Initialize Homing process and approach standby Position
+        self.execute_homing(homing_position=(210, -190, 60, 0, 0, 0))
+
 
     # region --- Connection and Initialization ---
     @staticmethod
@@ -68,6 +67,8 @@ class DoBotRobotController:
     def execute_homing(self, homing_position=(100, -220, 80, 0, 0, 0)):
         # Set base frame for storing home position
         self.robot.coord_frame = self.base_frame
+
+        self.robot.sync_robot.clear_command_queue()
 
         # Set home position
         self.robot.sync_robot.set_home_params(homing_position)
@@ -148,6 +149,7 @@ class DoBotRobotController:
             target_position = self.standby_position_right
         else:
             target_position = self.standby_position_left
+        print(self.get_pose())
         return target_position
 
     def pick_item(self):
