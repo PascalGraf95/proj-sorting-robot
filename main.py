@@ -1,3 +1,5 @@
+import cv2
+
 from modules.camera_controller import IDSCameraController, WebcamCameraController
 from modules.image_processing import *
 from modules.dimensionality_reduction import PCAReduction
@@ -6,6 +8,7 @@ from modules.clustering_algorithms import KMeansClustering, DBSCANClustering, Me
     AgglomerativeClusteringAlgorithm, SpectralClusteringAlgorithm, OpticsClusteringAlgorithm
 from modules.robot_controller import DoBotRobotController
 from modules.conveyor_belt import ConveyorBelt
+from modules.seperator import Seperator
 from modules.misc import *
 import numpy as np
 import time
@@ -23,7 +26,7 @@ def optimize_images_and_store(input_path, output_path):
         balanced_image = correct_image_white_balance(image, get_white_balance_parameters(mean_vals, 'min'))
         equalized_image = equalize_histograms(balanced_image, True, clip_limit=1.8, tile_grid_size=(8, 8))
         cv2.imwrite(os.path.join(output_path, file_name), equalized_image)
-        print("Converted Image {} from {}".format(idx+1, num_of_images))
+        print("Converted Image {} from {}".format(idx + 1, num_of_images))
 
 
 def extract_features(contours, rectangles, object_images, store_features=True):
@@ -78,9 +81,11 @@ def get_next_object_to_grab(object_dictionary):
     return next_object_pos, next_object_ang, next_object_idx
 
 
-def data_collection_phase(cam, conveyor_belt, interval=1.0):
+def data_collection_phase(cam, conveyor_belt, seperator, interval=1.0):
+    print("[INFO] Start data collection phase")
     last_image_captured_ts = time.time()
     conveyor_belt.start()
+    seperator.start()
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
@@ -91,10 +96,11 @@ def data_collection_phase(cam, conveyor_belt, interval=1.0):
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
             last_image_captured_ts = time.time()
 
-            if show_image(canvas_image, wait_for_ms=(interval*1000)//3):
+            if show_image(canvas_image, wait_for_ms=(interval * 1000) // 3):
                 break
     conveyor_belt.stop()
-    print("Finished collecting data!")
+    seperator.stop()
+    print("[INFO] Finished collecting data!")
 
 
 def clustering_phase(feature_method="cv_image_features", feature_type='all', reduction_to=2):
@@ -138,13 +144,15 @@ def test_camera_image(cam):
             break
 
 
-def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clustering_algorithm=None,
+def sorting_phase(cam, robot, conveyor_belt, seperator, interval=0.5, mode="sync", clustering_algorithm=None,
                   reduction_algorithm=None, feature_type="all"):
+    print("[INFO] Start sorting phase")
     # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
     while True:
         image = cam.capture_image()
         if time.time() - last_image_captured_ts > interval:
+            cluster_nr = None
             # Preprocess image and extract objects
             preprocessed_image = image_preprocessing(image)
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
@@ -156,9 +164,11 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
             if check_conveyor_force_stop_condition(object_dictionary) or \
                     check_conveyor_soft_stop_condition(object_dictionary, robot):
                 conveyor_belt.stop()
+                seperator.stop()
             else:
                 if not conveyor_belt.is_running():
                     conveyor_belt.start()
+                    seperator.start()
 
             if not conveyor_belt.is_running() and robot.get_robot_state() == 0:
                 # Get the first object which is the one furthest to the left on the conveyor.
@@ -177,6 +187,7 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
                     if reduction_algorithm:
                         image_features = reduction_algorithm.predict(image_features)
                     n_storage = clustering_algorithm.predict(image_features)[index]
+                    cluster_nr = n_storage
                 if mode == "sync":
                     # Then move to the respective storage and release it.
                     robot.approach_storage(n_storage)
@@ -187,6 +198,9 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
                     robot.async_deposit_process(start_process=True, n_storage=n_storage)
 
             canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+            if cluster_nr is not None:
+                canvas_image = cv2.putText(canvas_image, "#{}".format(cluster_nr), (int(position[0]), int(position[1])),
+                                           fontScale=4, fontFace=cv2.FONT_HERSHEY_DUPLEX, color=(0, 0, 255))
             last_image_captured_ts = time.time()
 
             if show_image(canvas_image, wait_for_ms=(interval * 1000) // 3):
@@ -213,19 +227,22 @@ def main():
     calc_transformation_matrices()
     robot = DoBotRobotController()
     conveyor_belt = ConveyorBelt()
+    seperator = Seperator()
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
     # test_camera_image(cam)
 
-    # data_collection_phase(cam, conveyor_belt, interval=1)
-    feature_type = "aspect_length_color"
-    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=2)
-    sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
+
+    data_collection_phase(cam, conveyor_belt, seperator, interval=1)
+    feature_type = "length_aspect_color"
+    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
+    sorting_phase(cam, robot, conveyor_belt, seperator, mode="async", clustering_algorithm=clustering_algorithm,
                   reduction_algorithm=reduction_algorithm, feature_type=feature_type)
 
     robot.disconnect_robot()
     conveyor_belt.disconnect()
+    seperator.disconnect()
     cam.close_camera_connection()
 
 
@@ -234,4 +251,3 @@ if __name__ == '__main__':
     # ToDo: Fix some positions leading to error
     # ToDo: Implement deep feature extractor (e.g. patch-core)
     # ToDo: Optimize Arcs
-
