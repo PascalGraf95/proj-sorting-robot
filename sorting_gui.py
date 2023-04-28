@@ -8,6 +8,7 @@ from modules.image_processing import *
 from modules.robot_controller import DoBotRobotController
 from modules.camera_controller import IDSCameraController
 from modules.conveyor_belt import ConveyorBelt
+from modules.seperator import Seperator
 from modules.data_handling import *
 from modules.misc import *
 import cv2
@@ -132,7 +133,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         self.update_status_text("Status: Ready")
 
     def connect_seperator(self):
-        pass
+        self.update_status_text("Status: Connecting to seperator")
+        if self._seperator:
+            self._seperator.disconnect()
+        self._seperator = Seperator()
+        self.update_connection_states()
+        self.update_status_text("Status: Ready")
 
     def update_connection_states(self):
         if self._conveyor_belt:

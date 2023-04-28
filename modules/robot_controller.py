@@ -72,6 +72,9 @@ class DoBotRobotController:
         # Set home position
         self.robot.sync_robot.set_home_params(homing_position)
 
+        # Clear Command que to prioritize Homing sequence
+        self.robot.sync_robot.clear_command_queue()
+
         # Perform homing
         print("[INFO] Starting homing process...")
         self.robot.sync_robot.perform_homing()
