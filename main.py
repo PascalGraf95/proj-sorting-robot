@@ -233,6 +233,7 @@ def main():
     time.sleep(0.5)
     # test_camera_image(cam)
 
+
     data_collection_phase(cam, conveyor_belt, seperator, interval=1)
     feature_type = "length_aspect_color"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
