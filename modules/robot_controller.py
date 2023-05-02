@@ -39,14 +39,6 @@ class DoBotRobotController:
         self.robot.linear_speed = linear_speed
         self.robot.angular_speed = angular_speed
 
-        # Initialize Homing process
-        self.execute_homing()
-        # Release Item
-        self.robot.release()
-
-        # Move to standby position
-        self.approach_standby_position()
-
     # region --- Connection and Initialization ---
     @staticmethod
     def connect_robot():
@@ -71,6 +63,9 @@ class DoBotRobotController:
 
         # Set home position
         self.robot.sync_robot.set_home_params(homing_position)
+
+        # Clear Command que to prioritize Homing sequence
+        self.robot.sync_robot.clear_command_queue()
 
         # Perform homing
         print("[INFO] Starting homing process...")

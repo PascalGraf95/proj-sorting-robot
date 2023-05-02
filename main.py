@@ -5,80 +5,13 @@ from modules.image_processing import *
 from modules.dimensionality_reduction import PCAReduction
 from modules.data_handling import *
 from modules.clustering_algorithms import KMeansClustering, DBSCANClustering, MeanShiftClustering, \
-    AgglomerativeClusteringAlgorithm, SpectralClusteringAlgorithm, OpticsClusteringAlgorithm
+    AgglomerativeClusteringAlgorithm, SpectralClusteringAlgorithm
 from modules.robot_controller import DoBotRobotController
 from modules.conveyor_belt import ConveyorBelt
 from modules.seperator import Seperator
 from modules.misc import *
 import numpy as np
 import time
-import os
-
-
-def optimize_images_and_store(input_path, output_path):
-    num_of_images = len(os.listdir(input_path))
-    for idx, file_name in enumerate(os.listdir(input_path)):
-        if not file_name.endswith((".jpg", ".jpeg", ".png", ".bmp")):
-            continue
-        image = cv2.imread(os.path.join(input_path, file_name))
-
-        mean_vals = get_mean_patch_value(image)
-        balanced_image = correct_image_white_balance(image, get_white_balance_parameters(mean_vals, 'min'))
-        equalized_image = equalize_histograms(balanced_image, True, clip_limit=1.8, tile_grid_size=(8, 8))
-        cv2.imwrite(os.path.join(output_path, file_name), equalized_image)
-        print("Converted Image {} from {}".format(idx + 1, num_of_images))
-
-
-def extract_features(contours, rectangles, object_images, store_features=True):
-    feature_list = None
-    if len(rectangles):
-        feature_list = get_image_features(object_images, contours, rectangles)
-        if store_features:
-            standardize_and_store_images_and_features(object_images, feature_list)
-    return feature_list
-
-
-def get_object_angles(rectangles):
-    object_dictionary = {}
-    for idx, rect in enumerate(rectangles):
-        (x, y), (width, height), angle = rect
-        if height > width:
-            angle -= 90
-        object_dictionary[idx] = ((x, y), angle)
-    return object_dictionary
-
-
-def check_conveyor_force_stop_condition(object_dictionary, min_x_val=500):
-    for key, val in object_dictionary.items():
-        if val[0][0] <= min_x_val:
-            return True
-    return False
-
-
-def check_conveyor_soft_stop_condition(object_dictionary, robot, max_x_val=1000):
-    if not robot.is_in_standby_position():
-        return False
-
-    for key, val in object_dictionary.items():
-        if val[0][0] <= max_x_val:
-            return True
-    return False
-
-
-def get_next_object_to_grab(object_dictionary):
-    min_x_val = np.inf
-    next_object_pos = None
-    next_object_ang = None
-    next_object_idx = None
-    idx = 0
-    for key, val in object_dictionary.items():
-        if val[0][0] <= min_x_val:
-            min_x_val = val[0][0]
-            next_object_pos = val[0]
-            next_object_ang = val[1]
-            next_object_idx = idx
-        idx += 1
-    return next_object_pos, next_object_ang, next_object_idx
 
 
 def data_collection_phase(cam, conveyor_belt, seperator, interval=1.0):
@@ -103,11 +36,15 @@ def data_collection_phase(cam, conveyor_belt, seperator, interval=1.0):
     print("[INFO] Finished collecting data!")
 
 
-def clustering_phase(feature_method="cv_image_features", feature_type='all', reduction_to=2):
+def clustering_phase(feature_method="cv_image_features", feature_type='all', reduction_to=2, preprocessing="rescaling"):
     if feature_method == "cv_image_features":
         data_paths, image_features = parse_cv_image_features()
-        image_features = select_features(image_features, feature_type=feature_type)
         image_array = load_images_from_path_list(data_paths)
+        if feature_type == "hog":
+            image_features = get_hog_features(image_array)
+        else:
+            image_features = select_features(image_features, feature_type=feature_type)
+        image_features = preprocess_features(image_features, reference_data=True, preprocessing=preprocessing)
     else:
         print("Not implemented yet")
         return
@@ -128,6 +65,20 @@ def clustering_phase(feature_method="cv_image_features", feature_type='all', red
     return pca, clustering_algorithm
 
 
+def parse_and_preprocess_features(feature_method="cv_image_features", feature_type='all', preprocessing='normalize'):
+    if feature_method == "cv_image_features":
+        data_paths, image_features = parse_cv_image_features()
+        image_array = load_images_from_path_list(data_paths)
+        if feature_type == "hog":
+            image_features = get_hog_features(image_array)
+        else:
+            image_features = select_features(image_features, feature_type=feature_type)
+        image_features = preprocess_features(image_features, reference_data=True, preprocessing=preprocessing)
+    else:
+        print("Not implemented yet")
+    return image_features
+
+
 def test_camera_image(cam):
     while True:
         image = cam.capture_image()
@@ -144,9 +95,8 @@ def test_camera_image(cam):
             break
 
 
-def sorting_phase(cam, robot, conveyor_belt, seperator, interval=0.5, mode="sync", clustering_algorithm=None,
-                  reduction_algorithm=None, feature_type="all"):
-    print("[INFO] Start sorting phase")
+def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clustering_algorithm=None,
+                  reduction_algorithm=None, feature_type="all", preprocessing="rescaling"):
     # Capture and process image every x seconds.
     last_image_captured_ts = time.time()
     while True:
@@ -182,8 +132,9 @@ def sorting_phase(cam, robot, conveyor_belt, seperator, interval=0.5, mode="sync
                     # Choose the storage number, start the synchronous or asynchronous deposit process.
                     n_storage = np.random.randint(0, 10)
                 else:
-                    image_features = extract_features(contours, rectangles, object_images, store_features=False)
+                    image_features, _ = extract_features(contours, rectangles, object_images, store_features=False)
                     image_features = select_features(image_features, feature_type=feature_type)
+                    image_features = preprocess_features(image_features, preprocessing=preprocessing)
                     if reduction_algorithm:
                         image_features = reduction_algorithm.predict(image_features)
                     n_storage = clustering_algorithm.predict(image_features)[index]
@@ -223,7 +174,6 @@ def calibrate_robot():
 
 def main():
     # calibrate_robot()
-    # test_camera_image()
     calc_transformation_matrices()
     robot = DoBotRobotController()
     conveyor_belt = ConveyorBelt()
@@ -231,14 +181,15 @@ def main():
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
-    # test_camera_image(cam)
+    test_camera_image(cam)
 
-
-    data_collection_phase(cam, conveyor_belt, seperator, interval=1)
-    feature_type = "length_aspect_color"
-    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type)
-    sorting_phase(cam, robot, conveyor_belt, seperator, mode="async", clustering_algorithm=clustering_algorithm,
-                  reduction_algorithm=reduction_algorithm, feature_type=feature_type)
+    # data_collection_phase(cam, conveyor_belt, interval=1)
+    feature_type = "area_aspect_length_color"
+    preprocessing = "normalization"
+    reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=3,
+                                                                 preprocessing=preprocessing)
+    sorting_phase(cam, robot, conveyor_belt, mode="async", clustering_algorithm=clustering_algorithm,
+                  reduction_algorithm=reduction_algorithm, feature_type=feature_type, preprocessing=preprocessing)
 
     robot.disconnect_robot()
     conveyor_belt.disconnect()

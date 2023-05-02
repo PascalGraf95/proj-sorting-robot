@@ -4,6 +4,7 @@ import os
 from datetime import date, datetime
 import csv
 import ast
+from skimage.feature import hog
 
 date_str = ""
 
@@ -217,48 +218,28 @@ def store_images_and_image_features(image_list, hu_moments_list):
             files_in_dir += 1
 
 
-def select_features(features, feature_type='all'):
-    # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, area, aspect, color, color, color, length]
-    # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,  7  ,   8   ,   9  ,   10 ,   11 ,   12  ]
-    feature_indices = []
-    if 'all' in feature_type:
-        feature_indices += list(range(13))
-    if 'hu' in feature_type:
-        feature_indices += list(range(7))
-    if 'area' in feature_type:
-        feature_indices.append(7)
-    if 'aspect' in feature_type:
-        feature_indices.append(8)
-    if 'color' in feature_type:
-        feature_indices += list(range(9, 12))
-    if 'length' in feature_type:
-        feature_indices.append(12)
-    feature_array = []
-    for f in features:
-        individual_feature = []
-        for index in feature_indices:
-            individual_feature.append(f[index])
-        feature_array.append(individual_feature)
-    # features = [f[feature_indices] for f in features]
-    feature_array = np.array(feature_array)
-    if len(feature_array.shape) == 1:
-        feature_array = np.expand_dims(feature_array, axis=1)
-    return feature_array
+def get_hog_features(image_array):
+    image_features = []
+    for image in image_array:
+        fd = hog(image, orientations=9, pixels_per_cell=(16, 16),
+                 cells_per_block=(2, 2), channel_axis=-1, feature_vector=True)
+        image_features.append(fd)
+    return np.array(image_features)
 
 
-def parse_cv_image_features():
-    sorted_files = [f for f in os.listdir("stored_images") if "csv" in f]
-    with open(os.path.join(r"stored_images", sorted_files[-1]), 'r', newline='') as file:
-        reader = csv.reader(file)
-        data_paths = []
-        features = []
-        for row in reader:
-            data_paths.append(row[0])
-            feature_str = row[1].replace("\n", ",")
-            feature = ast.literal_eval(feature_str)
-            features.append(feature)
-    # features = select_features(features, feature_type=feature_type)
-    return data_paths, features
+def apply_edge_detection(image_array):
+    image_features = []
+    for image in image_array:
+        image = image.astype(np.uint8)
+        grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # dst = cv2.cornerHarris(grayscale_image, 2, 3, 0.04)
+        edge_image = cv2.Canny(grayscale_image, 50, 100)
+        edge_image = cv2.dilate(edge_image, kernel=None)
+        contours, hierarchy = cv2.findContours(edge_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        image = cv2.drawContours(image, contours, 2, (0, 255, 0), 3)
+
+        show_image_once(edge_image)
+    return np.array(image_features)
 
 
 def calculate_hu_moments_from_contours(contours):
@@ -350,6 +331,27 @@ def get_image_features(object_images, contours, rectangles):
 def standardize_and_store_images_and_features(object_images, feature_list):
     standardized_images = standardize_images(object_images)
     store_images_and_image_features(standardized_images, feature_list)
+    return standardized_images
+
+
+def extract_features(contours, rectangles, object_images, store_features=True):
+    feature_list = None
+    standardized_images = None
+    if len(rectangles):
+        feature_list = get_image_features(object_images, contours, rectangles)
+        if store_features:
+            standardized_images = standardize_and_store_images_and_features(object_images, feature_list)
+    return feature_list, standardized_images
+
+
+def get_object_angles(rectangles):
+    object_dictionary = {}
+    for idx, rect in enumerate(rectangles):
+        (x, y), (width, height), angle = rect
+        if height > width:
+            angle -= 90
+        object_dictionary[idx] = ((x, y), angle)
+    return object_dictionary
 
 
 def main():
