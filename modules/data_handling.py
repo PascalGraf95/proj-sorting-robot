@@ -83,21 +83,26 @@ def get_cluster_images(reduced_features, image_array, labels):
 
 
 def select_features(features, feature_type='all'):
-    # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, area, aspect, color, color, color, length]
-    # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,  7  ,   8   ,   9  ,   10 ,   11 ,   12  ]
+    # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, extent, solidity, area, aspect, color, color, color, length]
+    # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,   7  ,      8   ,  9  ,   10  ,  11  ,  12  ,  13  ,   14  ]
+    # *h, ex, sol, a, asp, *c, l
     feature_indices = []
     if 'all' in feature_type:
         feature_indices += list(range(13))
     if 'hu' in feature_type:
         feature_indices += list(range(7))
-    if 'area' in feature_type:
+    if 'extent' in feature_type:
         feature_indices.append(7)
-    if 'aspect' in feature_type:
+    if 'solidity' in feature_type:
         feature_indices.append(8)
+    if 'area' in feature_type:
+        feature_indices.append(9)
+    if 'aspect' in feature_type:
+        feature_indices.append(10)
     if 'color' in feature_type:
-        feature_indices += list(range(9, 12))
+        feature_indices += list(range(11, 14))
     if 'length' in feature_type:
-        feature_indices.append(12)
+        feature_indices.append(14)
     feature_array = []
     for f in features:
         individual_feature = []
@@ -161,6 +166,7 @@ def plot_clusters(data, labels, latest_point=None, latest_label=None, plot=True)
 def preprocess_features(data, reference_data=False, preprocessing="rescaling"):
     global feature_minima, feature_maxima
     if reference_data:
+        feature_minima, feature_maxima = [], []
         for a in range(data.shape[1]):
             feature_minima.append(np.min(data[:, a]))
             feature_maxima.append(np.max(data[:, a]))

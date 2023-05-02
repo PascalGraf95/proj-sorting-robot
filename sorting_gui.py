@@ -208,8 +208,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
             self.feature_type_string += "_length"
         if self.check_feature_color.isChecked():
             self.feature_type_string += "_color"
-        self.image_array, self.image_features = load_images_and_features_from_path(preprocessing=self._feature_preprocessing,
-                                                                                   feature_type=self.feature_type_string)
+        self.image_array, self.image_features = load_images_and_features_from_path(
+            preprocessing=self._feature_preprocessing,
+            feature_type=self.feature_type_string)
 
         self.update_connection_states()
         self.update_status_text("Status: Ready")
