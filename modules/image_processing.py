@@ -354,14 +354,6 @@ def get_object_angles(rectangles):
     return object_dictionary
 
 
-def abc(cam, ):
-    image = cam.capture_image()
-    preprocessed_image = image_preprocessing(image)
-    contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
-                                                                                            smaller_image_area=True)
-    _ = extract_features(contours, rectangles, object_images, store_features=True)
-    # canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
-
 def main():
     image = cv2.imread(r"C:\Users\Drumm\OneDrive\Bilder\220101_diascan\vlcsnap-2022-01-20-16h53m03s560.jpg")
     show_image(image)
