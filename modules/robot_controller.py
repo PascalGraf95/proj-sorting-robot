@@ -57,14 +57,6 @@ class DoBotRobotController:
         # Shutdown and disconnect from the usb port
         self.robot.close()
 
-    def homing_process(self):
-        # Initialize Homing process
-        self.execute_homing()
-        # Release Item
-        self.robot.release()
-        # Move to standby position
-        self.approach_standby_position()
-
     def execute_homing(self, homing_position=(100, -220, 80, 0, 0, 0)):
         # Set base frame for storing home position
         self.robot.coord_frame = self.base_frame
