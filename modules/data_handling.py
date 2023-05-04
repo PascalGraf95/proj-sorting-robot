@@ -171,7 +171,7 @@ def plot_cluster_animation(data, labels, latest_point=None, latest_label=None, n
         for l in np.unique(labels):
             indices_where_label = np.where(labels == l)
             ax.scatter(data[indices_where_label, 0], data[indices_where_label, 1],
-                       data[indices_where_label, 2], label=l)
+                       data[indices_where_label, 2], label=l, s=30, alpha=0.7)
         if np.any(latest_point):
             ax.scatter(latest_point[:, 0], latest_point[:, 1], latest_point[:, 2], c=latest_label, s=100)
         ax.legend()

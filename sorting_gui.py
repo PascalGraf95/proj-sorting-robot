@@ -213,6 +213,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
             self.feature_type_string += "_length"
         if self.check_feature_color.isChecked():
             self.feature_type_string += "_color"
+        if self.check_feature_extent.isChecked():
+            self.feature_type_string += "_extent"
+        if self.check_feature_solidity.isChecked():
+            self.feature_type_string += "_solidity"
         self.image_array, self.image_features = load_images_and_features_from_path(
             preprocessing=self._feature_preprocessing,
             feature_type=self.feature_type_string)
@@ -221,27 +225,28 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         self.update_status_text("Status: Ready")
 
     def cluster_data(self):
-        self.update_status_text("Status: Clustering Images")
-        if self.radio_2d.isChecked():
-            reduction_to = 2
-        else:
-            reduction_to = 3
-        self._dim_reduction_algorithm, self.reduced_features = reduce_features(self.image_features,
-                                                                               reduction_to=reduction_to)
-        self._clustering_algorithm, self.labels = cluster_data(self.reduced_features,
-                                                               method=self.combo_clustering_method.currentText())
-        self.pca_cluster_image, self.cluster_example_images = get_cluster_images(self.reduced_features,
-                                                                                 self.image_array, self.labels)
-        self.combo_cluster.clear()
-        different_labels = list(np.unique(self.labels))
-        different_labels.sort()
-        label_strings = ["Cluster: {:02d}".format(l) for l in different_labels]
-        self.combo_cluster.addItems(label_strings)
-        self.combo_cluster.setCurrentIndex(0)
-        self.pca_cluster_timer.start(200)
+        if self.feature_type_string:
+            self.update_status_text("Status: Clustering Images")
+            if self.radio_2d.isChecked():
+                reduction_to = 2
+            else:
+                reduction_to = 3
+            self._dim_reduction_algorithm, self.reduced_features = reduce_features(self.image_features,
+                                                                                   reduction_to=reduction_to)
+            self._clustering_algorithm, self.labels = cluster_data(self.reduced_features,
+                                                                   method=self.combo_clustering_method.currentText())
+            self.pca_cluster_image, self.cluster_example_images = get_cluster_images(self.reduced_features,
+                                                                                     self.image_array, self.labels)
+            self.combo_cluster.clear()
+            different_labels = list(np.unique(self.labels))
+            different_labels.sort()
+            label_strings = ["Cluster: {:02d}".format(l) for l in different_labels]
+            self.combo_cluster.addItems(label_strings)
+            self.combo_cluster.setCurrentIndex(0)
+            self.pca_cluster_timer.start(200)
 
-        self.update_connection_states()
-        self.update_status_text("Status: Ready")
+            self.update_connection_states()
+            self.update_status_text("Status: Ready")
 
     # endregion
 
