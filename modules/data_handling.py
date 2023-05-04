@@ -76,8 +76,11 @@ def cluster_data(reduced_features, method="KMeans"):
     return clustering_algorithm, labels
 
 
-def get_cluster_images(reduced_features, image_array, labels):
-    pca_cluster_image = plot_clusters(reduced_features, labels, plot=False)
+def get_cluster_images(reduced_features, image_array, labels, plot_animation=True):
+    if plot_animation and reduced_features.shape[1] == 3:
+        pca_cluster_image = plot_cluster_animation(reduced_features, labels)
+    else:
+        pca_cluster_image = [plot_clusters(reduced_features, labels, plot=False)]
     cluster_example_images = show_cluster_images(image_array, labels, plot=False)
     return pca_cluster_image, cluster_example_images
 
@@ -131,7 +134,6 @@ def parse_cv_image_features():
 
 
 def plot_clusters(data, labels, latest_point=None, latest_label=None, plot=True):
-    colors = ['b', 'r', 'g', 'o', 'k', 'y', 'c']
     if data.shape[1] == 3:
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
@@ -141,14 +143,12 @@ def plot_clusters(data, labels, latest_point=None, latest_label=None, plot=True)
                        data[indices_where_label, 2], label=l)
         if np.any(latest_point):
             ax.scatter(latest_point[:, 0], latest_point[:, 1], latest_point[:, 2], c=latest_label, s=100)
-
     else:
         fig = plt.figure()
         ax = fig.add_subplot()
         for l in np.unique(labels):
             indices_where_label = np.where(labels == l)
             ax.scatter(data[indices_where_label, 0], data[indices_where_label, 1], label=l)
-        # ax.scatter(data[:, 0], data[:, 1], c=labels)
         if np.any(latest_point):
             ax.scatter(latest_point[:, 0], latest_point[:, 1], c=latest_label, s=100)
     ax.legend()
@@ -161,6 +161,32 @@ def plot_clusters(data, labels, latest_point=None, latest_label=None, plot=True)
     image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape((int(height), int(width), 3))
     plt.close(fig)
     return image
+
+
+def plot_cluster_animation(data, labels, latest_point=None, latest_label=None, num_images=35):
+    image_sequence = []
+    for i in range(num_images):
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        for l in np.unique(labels):
+            indices_where_label = np.where(labels == l)
+            ax.scatter(data[indices_where_label, 0], data[indices_where_label, 1],
+                       data[indices_where_label, 2], label=l)
+        if np.any(latest_point):
+            ax.scatter(latest_point[:, 0], latest_point[:, 1], latest_point[:, 2], c=latest_label, s=100)
+        ax.legend()
+        ax.grid(True)
+        ax.view_init(elev=30, azim=360//num_images*i)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+        fig.suptitle("PCA Projected Data Points")
+        width, height = fig.get_size_inches() * fig.get_dpi()
+        fig.canvas.draw()
+        image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape((int(height), int(width), 3))
+        image_sequence.append(image)
+        plt.close(fig)
+    return image_sequence
 
 
 def preprocess_features(data, reference_data=False, preprocessing="rescaling"):
