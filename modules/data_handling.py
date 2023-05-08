@@ -76,28 +76,36 @@ def cluster_data(reduced_features, method="KMeans"):
     return clustering_algorithm, labels
 
 
-def get_cluster_images(reduced_features, image_array, labels):
-    pca_cluster_image = plot_clusters(reduced_features, labels, plot=False)
+def get_cluster_images(reduced_features, image_array, labels, plot_animation=True):
+    if plot_animation and reduced_features.shape[1] == 3:
+        pca_cluster_image = plot_cluster_animation(reduced_features, labels)
+    else:
+        pca_cluster_image = [plot_clusters(reduced_features, labels, plot=False)]
     cluster_example_images = show_cluster_images(image_array, labels, plot=False)
     return pca_cluster_image, cluster_example_images
 
 
 def select_features(features, feature_type='all'):
-    # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, area, aspect, color, color, color, length]
-    # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,  7  ,   8   ,   9  ,   10 ,   11 ,   12  ]
+    # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, extent, solidity, area, aspect, color, color, color, length]
+    # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,   7  ,      8   ,  9  ,   10  ,  11  ,  12  ,  13  ,   14  ]
+    # *h, ex, sol, a, asp, *c, l
     feature_indices = []
     if 'all' in feature_type:
         feature_indices += list(range(13))
     if 'hu' in feature_type:
         feature_indices += list(range(7))
-    if 'area' in feature_type:
+    if 'extent' in feature_type:
         feature_indices.append(7)
-    if 'aspect' in feature_type:
+    if 'solidity' in feature_type:
         feature_indices.append(8)
+    if 'area' in feature_type:
+        feature_indices.append(9)
+    if 'aspect' in feature_type:
+        feature_indices.append(10)
     if 'color' in feature_type:
-        feature_indices += list(range(9, 12))
+        feature_indices += list(range(11, 14))
     if 'length' in feature_type:
-        feature_indices.append(12)
+        feature_indices.append(14)
     feature_array = []
     for f in features:
         individual_feature = []
@@ -126,7 +134,6 @@ def parse_cv_image_features():
 
 
 def plot_clusters(data, labels, latest_point=None, latest_label=None, plot=True):
-    colors = ['b', 'r', 'g', 'o', 'k', 'y', 'c']
     if data.shape[1] == 3:
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
@@ -136,14 +143,12 @@ def plot_clusters(data, labels, latest_point=None, latest_label=None, plot=True)
                        data[indices_where_label, 2], label=l)
         if np.any(latest_point):
             ax.scatter(latest_point[:, 0], latest_point[:, 1], latest_point[:, 2], c=latest_label, s=100)
-
     else:
         fig = plt.figure()
         ax = fig.add_subplot()
         for l in np.unique(labels):
             indices_where_label = np.where(labels == l)
             ax.scatter(data[indices_where_label, 0], data[indices_where_label, 1], label=l)
-        # ax.scatter(data[:, 0], data[:, 1], c=labels)
         if np.any(latest_point):
             ax.scatter(latest_point[:, 0], latest_point[:, 1], c=latest_label, s=100)
     ax.legend()
@@ -158,9 +163,36 @@ def plot_clusters(data, labels, latest_point=None, latest_label=None, plot=True)
     return image
 
 
+def plot_cluster_animation(data, labels, latest_point=None, latest_label=None, num_images=35):
+    image_sequence = []
+    for i in range(num_images):
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        for l in np.unique(labels):
+            indices_where_label = np.where(labels == l)
+            ax.scatter(data[indices_where_label, 0], data[indices_where_label, 1],
+                       data[indices_where_label, 2], label=l, s=30, alpha=0.7)
+        if np.any(latest_point):
+            ax.scatter(latest_point[:, 0], latest_point[:, 1], latest_point[:, 2], c=latest_label, s=100)
+        ax.legend()
+        ax.grid(True)
+        ax.view_init(elev=30, azim=360//num_images*i)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+        fig.suptitle("PCA Projected Data Points")
+        width, height = fig.get_size_inches() * fig.get_dpi()
+        fig.canvas.draw()
+        image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape((int(height), int(width), 3))
+        image_sequence.append(image)
+        plt.close(fig)
+    return image_sequence
+
+
 def preprocess_features(data, reference_data=False, preprocessing="rescaling"):
     global feature_minima, feature_maxima
     if reference_data:
+        feature_minima, feature_maxima = [], []
         for a in range(data.shape[1]):
             feature_minima.append(np.min(data[:, a]))
             feature_maxima.append(np.max(data[:, a]))

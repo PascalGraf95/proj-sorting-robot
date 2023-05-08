@@ -39,6 +39,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         self.reduced_features = None
         self.labels = None
         self.pca_cluster_image = None
+        self.pca_cluster_index = 0
         self.cluster_example_images = None
         self.live_conveyor_image = None
         self.data_collection_active = False
@@ -93,6 +94,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         self.live_image_timer = QTimer()
         self.live_image_timer.timeout.connect(self.update_live_conveyor_image)
         self.live_image_timer.start(100)
+
+        # Setup PCA Cluster Image
+        self.pca_cluster_timer = QTimer()
+        self.pca_cluster_timer.timeout.connect(self.update_pca_cluster_image)
 
     # region - Connections -
     def connect_dobot(self):
@@ -208,34 +213,40 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
             self.feature_type_string += "_length"
         if self.check_feature_color.isChecked():
             self.feature_type_string += "_color"
-        self.image_array, self.image_features = load_images_and_features_from_path(preprocessing=self._feature_preprocessing,
-                                                                                   feature_type=self.feature_type_string)
+        if self.check_feature_extent.isChecked():
+            self.feature_type_string += "_extent"
+        if self.check_feature_solidity.isChecked():
+            self.feature_type_string += "_solidity"
+        self.image_array, self.image_features = load_images_and_features_from_path(
+            preprocessing=self._feature_preprocessing,
+            feature_type=self.feature_type_string)
 
         self.update_connection_states()
         self.update_status_text("Status: Ready")
 
     def cluster_data(self):
-        self.update_status_text("Status: Clustering Images")
-        if self.radio_2d.isChecked():
-            reduction_to = 2
-        else:
-            reduction_to = 3
-        self._dim_reduction_algorithm, self.reduced_features = reduce_features(self.image_features,
-                                                                               reduction_to=reduction_to)
-        self._clustering_algorithm, self.labels = cluster_data(self.reduced_features,
-                                                               method=self.combo_clustering_method.currentText())
-        self.pca_cluster_image, self.cluster_example_images = get_cluster_images(self.reduced_features,
-                                                                                 self.image_array, self.labels)
-        self.combo_cluster.clear()
-        different_labels = list(np.unique(self.labels))
-        different_labels.sort()
-        label_strings = ["Cluster: {:02d}".format(l) for l in different_labels]
-        self.combo_cluster.addItems(label_strings)
-        self.combo_cluster.setCurrentIndex(0)
-        self.update_pca_cluster_image()
+        if self.feature_type_string:
+            self.update_status_text("Status: Clustering Images")
+            if self.radio_2d.isChecked():
+                reduction_to = 2
+            else:
+                reduction_to = 3
+            self._dim_reduction_algorithm, self.reduced_features = reduce_features(self.image_features,
+                                                                                   reduction_to=reduction_to)
+            self._clustering_algorithm, self.labels = cluster_data(self.reduced_features,
+                                                                   method=self.combo_clustering_method.currentText())
+            self.pca_cluster_image, self.cluster_example_images = get_cluster_images(self.reduced_features,
+                                                                                     self.image_array, self.labels)
+            self.combo_cluster.clear()
+            different_labels = list(np.unique(self.labels))
+            different_labels.sort()
+            label_strings = ["Cluster: {:02d}".format(l) for l in different_labels]
+            self.combo_cluster.addItems(label_strings)
+            self.combo_cluster.setCurrentIndex(0)
+            self.pca_cluster_timer.start(200)
 
-        self.update_connection_states()
-        self.update_status_text("Status: Ready")
+            self.update_connection_states()
+            self.update_status_text("Status: Ready")
 
     # endregion
 
@@ -358,16 +369,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
             self.image_live_conveyor.setPixmap(QPixmap.fromImage(convert))
 
     def update_pca_cluster_image(self):
-        image = self.pca_cluster_image
-        image_box_width = self.image_pca_cluster.size().width()
-        image_box_height = self.image_pca_cluster.size().height()
-        resize_ratio_width = image_box_width/image.shape[1]
-        resize_ratio_height = image_box_height/image.shape[0]
-        resize_ratio = np.min([resize_ratio_height, resize_ratio_width])
-        image = cv2.resize(image, dsize=(int(image.shape[1]*resize_ratio), int(image.shape[0]*resize_ratio)))
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        convert = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format.Format_BGR888)
-        self.image_pca_cluster.setPixmap(QPixmap.fromImage(convert))
+        if np.any(self.pca_cluster_image):
+            if self.pca_cluster_index >= len(self.pca_cluster_image):
+                self.pca_cluster_index = 0
+            image = self.pca_cluster_image[self.pca_cluster_index]
+            image_box_width = self.image_pca_cluster.size().width()
+            image_box_height = self.image_pca_cluster.size().height()
+            resize_ratio_width = image_box_width/image.shape[1]
+            resize_ratio_height = image_box_height/image.shape[0]
+            resize_ratio = np.min([resize_ratio_height, resize_ratio_width])
+            image = cv2.resize(image, dsize=(int(image.shape[1]*resize_ratio), int(image.shape[0]*resize_ratio)))
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            convert = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format.Format_BGR888)
+            self.image_pca_cluster.setPixmap(QPixmap.fromImage(convert))
+            self.pca_cluster_index += 1
 
     # endregion
 

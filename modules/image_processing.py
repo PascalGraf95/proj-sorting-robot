@@ -269,18 +269,21 @@ def get_rectangle_aspect_ratios(rectangles):
     return rectangle_aspect_list
 
 
-def get_mean_image_color(object_images):
+def get_mean_image_color(object_images, contours):
     mean_color_list = []
-    for image in object_images:
-        new_image_width = int(image.shape[1] * 0.75)
-        new_image_height = int(image.shape[0] * 0.75)
-        image_center = [int(image.shape[0] * 0.5), int(image.shape[1] * 0.5)]
-        cropped_image = image.copy()[image_center[0] - int(new_image_height*0.5):
-                                     image_center[0] + int(new_image_height*0.5),
-                                     image_center[1] - int(new_image_width*0.5):
-                                     image_center[1] + int(new_image_width*0.5)]
-        cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2HSV)
-        mean_color_list.append(np.mean(cropped_image, axis=(0, 1)).tolist())
+    for image, c in zip(object_images, contours):
+        mask = np.zeros(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).shape, np.uint8)
+        cv2.drawContours(mask, [c], 0, 255, -1)
+        # new_image_width = int(image.shape[1] * 0.75)
+        # new_image_height = int(image.shape[0] * 0.75)
+        # image_center = [int(image.shape[0] * 0.5), int(image.shape[1] * 0.5)]
+        # cropped_image = image.copy()[image_center[0] - int(new_image_height*0.5):
+        #                              image_center[0] + int(new_image_height*0.5),
+        #                              image_center[1] - int(new_image_width*0.5):
+        #                              image_center[1] + int(new_image_width*0.5)]
+        # cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2HSV)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        mean_color_list.append(list(cv2.mean(image, mask=mask))[:3])
     return mean_color_list
 
 
@@ -315,16 +318,82 @@ def get_length_list(rectangles):
     return length_list
 
 
+def extract_contours_and_rectangles_based_on_edges(object_images):
+    contour_list = []
+    bounding_box_list = []
+    rect_list = []
+    for idx, im in enumerate(object_images):
+        image = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        image = cv2.Canny(image, 50, 80)
+        kernel = np.ones((3, 3), np.uint8)
+        image = cv2.dilate(image, kernel, iterations=1)
+        contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        max_contour_area = 0
+        biggest_contour = None
+        bounding_box = None
+        rect = None
+        for c in contours:
+            area = cv2.contourArea(c)
+            if area > max_contour_area:
+                max_contour_area = area
+                biggest_contour = c
+                rect = get_rects_from_contours([biggest_contour])[0]
+                bounding_box = get_bounding_boxes_from_rectangles([rect])
+        contour_list.append(biggest_contour)
+        bounding_box_list.append(bounding_box)
+        rect_list.append(rect)
+
+        # print("NUM CONTOURS: {}".format(len(contours)))
+        # image = cv2.drawContours(im, [biggest_contour], contourIdx=-1, color=(255, 0, 0))
+        # image = cv2.drawContours(image, bounding_box, contourIdx=-1, color=(0, 255, 0))
+        # cv2.imshow("IMAGE_" + str(idx), image)
+    # cv2.waitKey(1)
+    return contour_list, rect_list
+
+
+def get_extent(contours, rectangles):
+    extent_list = []
+    for c, r in zip(contours, rectangles):
+        area = cv2.contourArea(c)
+        rect_area = r[1][0] * r[1][1]
+        extent_list.append(float(area) / rect_area)
+    return extent_list
+
+
+def get_solidity(contours):
+    solidity_list = []
+    for c in contours:
+        area = cv2.contourArea(c)
+        hull = cv2.convexHull(c)
+        hull_area = cv2.contourArea(hull)
+        solidity_list.append(float(area) / hull_area)
+    return solidity_list
+
+
+def get_contour_areas(contours):
+    contour_area_list = []
+    for c in contours:
+        contour_area_list.append(cv2.contourArea(c))
+    return contour_area_list
+
+
 def get_image_features(object_images, contours, rectangles):
+    contours, rectangles = extract_contours_and_rectangles_based_on_edges(object_images)
     hu_moments_list = calculate_hu_moments_from_contours(contours)
+    extent_list = get_extent(contours, rectangles)
+    solidity_list = get_solidity(contours)
     rectangle_area_list = get_rectangle_areas(rectangles)
+    contour_area_list = get_contour_areas(contours)
     rectangle_aspect_list = get_rectangle_aspect_ratios(rectangles)
-    mean_color_list = get_mean_image_color(object_images)
+    mean_color_list = get_mean_image_color(object_images, contours)
     length_list = get_length_list(rectangles)
 
-    object_feature_list = [[*h, a, asp, *c, l] for h, a, asp, c, l in zip(hu_moments_list, rectangle_area_list,
-                                                                          rectangle_aspect_list,
-                                                                          mean_color_list, length_list)]
+    object_feature_list = [[*h, ex, sol, a, asp, *c, l] for h, ex, sol, a, asp, c, l in zip(hu_moments_list,
+                                                                                            extent_list, solidity_list,
+                                                                                            contour_area_list,
+                                                                                            rectangle_aspect_list,
+                                                                                            mean_color_list,
+                                                                                            length_list)]
     return object_feature_list
 
 
