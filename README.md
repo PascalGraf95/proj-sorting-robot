@@ -1,4 +1,4 @@
-# Sorting screws and other unknown objects based on image features in a unsupervised fashing using DoBot Magician
+# Sorting screws and other unknown objects based on image features in a unsupervised fashion using DoBot Magician
 
 ## General Information
 - This project has its origin  from a batchelor thesis assignment which was worked out by Prof. Dr.-Ing. Nicolaj Stache.
