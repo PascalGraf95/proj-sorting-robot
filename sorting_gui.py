@@ -71,6 +71,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         # region Device Connection
         self.button_connect_dobot.clicked.connect(self.connect_dobot)
         self.button_dobot_homing.clicked.connect(self.homing_dobot)
+        self.button_dobot_standby.clicked.connect(self.standby_dobot)
         self.button_connect_camera.clicked.connect(self.connect_camera)
         self.button_connect_conveyor.clicked.connect(self.connect_conveyor)
         self.button_connect_seperator.clicked.connect(self.connect_seperator)
@@ -118,6 +119,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         self.update_connection_states()
 
         self.update_status_text("Status: Ready")
+
+    def standby_dobot(self):
+        self.update_status_text("Status: Approaching Standby Position")
+        if self._robot:
+            self._robot.release_item()
+            self._robot.approach_standby_position()
+        self.update_status_text("Status: Ready")
+
 
     def connect_camera(self):
         self.update_status_text("Status: Connecting to Camera")

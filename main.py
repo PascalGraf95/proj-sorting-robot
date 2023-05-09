@@ -175,7 +175,7 @@ def calibrate_robot():
 def main():
     # calibrate_robot()
     calc_transformation_matrices()
-    robot = DoBotRobotController()
+    # robot = DoBotRobotController()
     conveyor_belt = ConveyorBelt()
     seperator = Seperator()
     cam = IDSCameraController()
@@ -183,7 +183,7 @@ def main():
     time.sleep(0.5)
     test_camera_image(cam)
 
-    # data_collection_phase(cam, conveyor_belt, interval=1)
+    data_collection_phase(cam, conveyor_belt, seperator, interval=1)
     feature_type = "area_aspect_length_color"
     preprocessing = "normalization"
     reduction_algorithm, clustering_algorithm = clustering_phase(feature_type=feature_type, reduction_to=3,

@@ -318,14 +318,27 @@ def get_length_list(rectangles):
     return length_list
 
 
+def increase_bgr_brightness(img, value=20):
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+
+    lim = 255 - value
+    v[v > lim] = 255
+    v[v <= lim] += value
+
+    final_hsv = cv2.merge((h, s, v))
+    img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+    return img
+
+
 def extract_contours_and_rectangles_based_on_edges(object_images):
     contour_list = []
     bounding_box_list = []
     rect_list = []
     for idx, im in enumerate(object_images):
-        image = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        image = cv2.Canny(image, 50, 80)
-        kernel = np.ones((3, 3), np.uint8)
+        image = cv2.cvtColor(im.copy(), cv2.COLOR_BGR2GRAY)
+        image = cv2.Canny(image, 20, 80)
+        kernel = np.ones((5, 5), np.uint8)
         image = cv2.dilate(image, kernel, iterations=1)
         contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         max_contour_area = 0
@@ -344,10 +357,11 @@ def extract_contours_and_rectangles_based_on_edges(object_images):
         rect_list.append(rect)
 
         # print("NUM CONTOURS: {}".format(len(contours)))
-        # image = cv2.drawContours(im, [biggest_contour], contourIdx=-1, color=(255, 0, 0))
-        # image = cv2.drawContours(image, bounding_box, contourIdx=-1, color=(0, 255, 0))
+        # con_image = cv2.drawContours(im, [biggest_contour], contourIdx=-1, color=(255, 0, 0))
+        # con_image = cv2.drawContours(con_image, bounding_box, contourIdx=-1, color=(0, 255, 0))
+        # cv2.imshow("CON_IMAGE_" + str(idx), con_image)
         # cv2.imshow("IMAGE_" + str(idx), image)
-    # cv2.waitKey(1)
+    # cv2.waitKey(0)
     return contour_list, rect_list
 
 
