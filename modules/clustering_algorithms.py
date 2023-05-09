@@ -8,7 +8,7 @@ class ClusteringAlgorithm:
     def __init__(self, num_clusters):
         self.num_clusters = num_clusters
 
-    def fit_to_data(self, data, min_clusters=3):
+    def fit_to_data(self, data, min_clusters=3, max_clusters=10):
         raise NotImplementedError()
 
     def predict(self, data):
@@ -20,11 +20,11 @@ class KMeansClustering(ClusteringAlgorithm):
         super().__init__(num_clusters)
         self.kmeans = None
 
-    def fit_to_data(self, data, min_clusters=3, max_clusters=8):
+    def fit_to_data(self, data, min_clusters=3, max_clusters=10):
         if self.num_clusters == 'auto':
             scores = []
             for k in range(min_clusters, max_clusters+1):
-                kmeans = KMeans(n_clusters=k, n_init='auto')
+                kmeans = KMeans(n_clusters=k, n_init='auto', max_iter=500)
                 kmeans.fit(data)
                 labels = kmeans.labels_
                 scores.append(silhouette_score(data, labels, metric='euclidean'))
@@ -46,7 +46,7 @@ class DBSCANClustering(ClusteringAlgorithm):
         self.dbscan = None
         self.data = None
 
-    def fit_to_data(self, data, min_clusters=3, max_clusters=8):
+    def fit_to_data(self, data, min_clusters=3, max_clusters=10):
         min_samples_per_cluster = int(data.shape[0] * 0.02)
         while True:
             self.dbscan = DBSCAN(eps=self.eps, min_samples=min_samples_per_cluster)
