@@ -9,6 +9,7 @@ import ast
 from modules.image_processing import get_hog_features
 from modules.clustering_algorithms import *
 from modules.dimensionality_reduction import *
+import math
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 feature_maxima = []
@@ -242,7 +243,7 @@ def show_live_collected_images(data, max_x_images=7, max_y_images=3, plot=True):
     if np.any(data):
         num_images = len(data)
         len_x_axis = np.min([int(num_images), max_x_images])
-        len_y_axis = np.min([int(num_images/len_x_axis), max_y_images])
+        len_y_axis = np.min([math.ceil(num_images/len_x_axis), max_y_images])
         if len_x_axis == 1:
             return None
 

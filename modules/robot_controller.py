@@ -170,25 +170,25 @@ class DoBotRobotController:
 
     def get_storage_position(self, n_storage):
         if n_storage == 0:
-            target_position = (-190, -190, self.maneuvering_height, 0, 0, -45)
+            target_position = (-190, -190, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 1:
-            target_position = (-190, -240, self.maneuvering_height, 0, 0, -45)
+            target_position = (-190, -240, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 2:
-            target_position = (-290, -190, self.maneuvering_height, 0, 0, -45)
+            target_position = (-290, -190, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 3:
-            target_position = (-290, -240, self.maneuvering_height, 0, 0, -45)
+            target_position = (-290, -240, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 4:
-            target_position = (-375, -250, self.maneuvering_height, 0, 0, -45)
+            target_position = (-375, -250, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 5:
-            target_position = (-190, 180, self.maneuvering_height, 0, 0, -45)
+            target_position = (-190, 180, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 6:
-            target_position = (-190, 230, self.maneuvering_height, 0, 0, -45)
+            target_position = (-190, 230, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 7:
-            target_position = (-290, 180, self.maneuvering_height, 0, 0, -45)
+            target_position = (-290, 180, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 8:
-            target_position = (-290, 230, self.maneuvering_height, 0, 0, -45)
+            target_position = (-290, 230, self.maneuvering_height, 0, 0, 0)
         elif n_storage == 9:
-            target_position = (-375, 250, self.maneuvering_height, 0, 0, -45)
+            target_position = (-375, 250, self.maneuvering_height, 0, 0, 0)
         else:
             print("[WARNING] There is no storage with number {}".format(n_storage))
             target_position = self.get_pose()
