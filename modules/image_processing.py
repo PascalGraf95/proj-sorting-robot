@@ -331,7 +331,7 @@ def increase_bgr_brightness(img, value=20):
     return img
 
 
-def extract_contours_and_rectangles_based_on_edges(object_images):
+def extract_contours_and_rectangles_based_on_edges(object_images, old_contours, old_rectangles):
     contour_list = []
     bounding_box_list = []
     rect_list = []
@@ -352,9 +352,14 @@ def extract_contours_and_rectangles_based_on_edges(object_images):
                 biggest_contour = c
                 rect = get_rects_from_contours([biggest_contour])[0]
                 bounding_box = get_bounding_boxes_from_rectangles([rect])
-        contour_list.append(biggest_contour)
-        bounding_box_list.append(bounding_box)
-        rect_list.append(rect)
+        if np.any(biggest_contour):
+            contour_list.append(biggest_contour)
+            bounding_box_list.append(bounding_box)
+            rect_list.append(rect)
+        else:
+            contour_list.append(old_contours[idx])
+            bounding_box_list.append(get_bounding_boxes_from_rectangles([old_rectangles[idx]]))
+            rect_list.append(old_rectangles[idx])
 
         # print("NUM CONTOURS: {}".format(len(contours)))
         # con_image = cv2.drawContours(im, [biggest_contour], contourIdx=-1, color=(255, 0, 0))
@@ -392,7 +397,7 @@ def get_contour_areas(contours):
 
 
 def get_image_features(object_images, contours, rectangles):
-    contours, rectangles = extract_contours_and_rectangles_based_on_edges(object_images)
+    contours, rectangles = extract_contours_and_rectangles_based_on_edges(object_images, contours, rectangles)
     hu_moments_list = calculate_hu_moments_from_contours(contours)
     extent_list = get_extent(contours, rectangles)
     solidity_list = get_solidity(contours)
