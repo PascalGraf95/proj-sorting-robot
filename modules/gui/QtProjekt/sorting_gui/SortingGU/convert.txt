@@ -1,0 +1,1 @@
+python -m PyQt6.uic.pyuic -o sorting_gui.py -x sortinggui.ui

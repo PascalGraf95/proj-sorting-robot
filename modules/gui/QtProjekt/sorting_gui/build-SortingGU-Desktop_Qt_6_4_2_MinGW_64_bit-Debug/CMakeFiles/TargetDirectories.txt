@@ -1,0 +1,9 @@
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/SortingGU.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/edit_cache.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/rebuild_cache.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/list_install_components.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/install.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/install/local.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/install/strip.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/SortingGU_autogen_timestamp_deps.dir
+A:/Arbeit/Github/sorting_gui/build-SortingGU-Desktop_Qt_6_4_2_MinGW_64_bit-Debug/CMakeFiles/SortingGU_autogen.dir
