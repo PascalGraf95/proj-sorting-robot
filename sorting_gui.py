@@ -365,17 +365,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
             self.image_cluster_examples.setPixmap(QPixmap.fromImage(convert))
 
     def update_live_conveyor_image(self):
-        if np.any(self.live_conveyor_image):
-            image = self.live_conveyor_image
-            image_box_width = self.image_live_conveyor.size().width()
-            image_box_height = self.image_live_conveyor.size().height()
-            resize_ratio_width = image_box_width/image.shape[1]
-            resize_ratio_height = image_box_height/image.shape[0]
-            resize_ratio = np.min([resize_ratio_height, resize_ratio_width])
-            image = cv2.resize(image, dsize=(int(image.shape[1]*resize_ratio), int(image.shape[0]*resize_ratio)))
+   # def update_live_conveyor_image(self):
+     #   if np.any(self.live_conveyor_image):
+    #        image = self.live_conveyor_image
+     #       image_box_width = self.image_live_conveyor.size().width()
+      #      image_box_height = self.image_live_conveyor.size().height()
+       #     resize_ratio_width = image_box_width/image.shape[1]
+        #    resize_ratio_height = image_box_height/image.shape[0]
+         #   resize_ratio = np.min([resize_ratio_height, resize_ratio_width])
+      #      image = cv2.resize(image, dsize=(int(image.shape[1]*resize_ratio), int(image.shape[0]*resize_ratio)))
             # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            convert = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format.Format_BGR888)
-            self.image_live_conveyor.setPixmap(QPixmap.fromImage(convert))
+       #     convert = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format.Format_BGR888)
+       #     self.image_live_conveyor.setPixmap(QPixmap.fromImage(convert))
+
+    def update_live_conveyor_image(self):
+        if self._camera is not None:
+            image = self._camera.capture_image()
+
+            if np.any(image):
+                image_box_width = self.image_live_conveyor.size().width()
+                image_box_height = self.image_live_conveyor.size().height()
+                resize_ratio_width = image_box_width / image.shape[1]
+                resize_ratio_height = image_box_height / image.shape[0]
+                resize_ratio = np.min([resize_ratio_height, resize_ratio_width])
+                image = cv2.resize(image, dsize=(int(image.shape[1] * resize_ratio), int(image.shape[0] * resize_ratio)))
+                # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                convert = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format.Format_BGR888)
+                self.image_live_conveyor.setPixmap(QPixmap.fromImage(convert))
 
     def update_pca_cluster_image(self):
         if np.any(self.pca_cluster_image):
