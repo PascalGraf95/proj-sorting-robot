@@ -2,6 +2,7 @@ from modules.misc import serial_ports
 import serial
 import time
 
+# verbose to Debug and get mor information in the Terminal Output
 verbose = False
 
 class Seperator:
@@ -12,6 +13,8 @@ class Seperator:
         for port in available_ports:
             if 'Arduino Uno' in port[1]:
                 arduino_port = port[0]
+                if verbose:
+                    print("[INFO] Arduino Port set to {}".format(arduino_port))
                 break
         if arduino_port == "":
             raise ConnectionError("[ERROR] Seperator port could not be found!")
@@ -43,6 +46,7 @@ class Seperator:
         self.stop()
 
 if __name__ == '__main__':
+    # Testing the if the seperator starts moving
     seperator = Seperator()
     seperator.seperate_cycle(30)
     seperator.disconnect()
