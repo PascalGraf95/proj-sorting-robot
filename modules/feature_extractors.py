@@ -168,6 +168,7 @@ class VAEFeatureExtractor:
 
 def main():
     feature_extractor = VAEFeatureExtractor(latent_dim=64)
+    #ToDO: Directory anpassen
     dataset = image_dataset_from_directory(directory=r"A:\Arbeit\Github\proj-camera-controller\stored_images\test",
                                            image_size=(56, 56), batch_size=16)
     loss = []
