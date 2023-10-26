@@ -1,0 +1,33 @@
+The system is: Windows - 10.0.19045 - AMD64
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.32.31326/bin/HostX64/x64/cl.exe 
+Build flags: -DQT_QML_DEBUG
+Id flags:  
+
+The output was:
+0
+Microsoft (R) C/C++-Optimierungscompiler Version 19.32.31332 für x64
+Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+
+CMakeCXXCompilerId.cpp
+Microsoft (R) Incremental Linker Version 14.32.31332.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+/out:CMakeCXXCompilerId.exe 
+CMakeCXXCompilerId.obj 
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.exe"
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.obj"
+
+The CXX compiler identification is MSVC, found in "E:/Studierendenprojekte/proj-camera-controller_/modules/gui/QtProjekt/build-QTGUI-Desktop_x86_windows_msvc2022_pe_64bit-Debug/CMakeFiles/3.24.2/CompilerIdCXX/CMakeCXXCompilerId.exe"
+
+Detecting CXX compiler ABI info compiled with the following output:
+Change Dir: E:/Studierendenprojekte/proj-camera-controller_/modules/gui/QtProjekt/build-QTGUI-Desktop_x86_windows_msvc2022_pe_64bit-Debug/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/PROGRA~1/MICROS~3/2022/COMMUN~1/Common7/IDE/COMMON~1/MICROS~1/CMake/Ninja/ninja.exe cmTC_96933 && [1/2] Building CXX object CMakeFiles\cmTC_96933.dir\CMakeCXXCompilerABI.cpp.obj
+[2/2] Linking CXX executable cmTC_96933.exe
+
+
+
