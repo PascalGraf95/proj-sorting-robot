@@ -2,7 +2,6 @@
 Define the pins and ports of the arduino to drive a stepper
 */
 
-
 // Cancels the command if another input is awaited (for example when setting the PWM duty cycle)
 #define CMD_CANCEL 0xFF
 
@@ -15,6 +14,10 @@ Define the pins and ports of the arduino to drive a stepper
 #define CMD_STOP_MOTOR 0x02
 
 // "Set speed"
-// Sets the amount of Steps
-// Example: 0x03 0x20   => set 32 Steps (0x20 = 32)
-#define CMD_SET_STEPS 0x03
+// Sets the PWM duty cycle. This command has to be followed by the PWM duty cycle in % (1 byte)
+// Example: 0x03 0x20   => set 32% duty cycle (0x20 = 32)
+#define CMD_SET_PWMDC 0x03
+
+#define MODE_OFF 0
+#define MODE_ON 1
+#define MODE_JIGGLE 2

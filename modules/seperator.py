@@ -3,12 +3,14 @@ import serial
 import time
 
 # verbose to Debug and get mor information in the Terminal Output
-verbose = False
+verbose = True
 
 class Seperator:
     def __init__(self):
         # Establish a serial connection to the arduino
         available_ports = serial_ports()
+        if verbose:
+            print("[INFO] Available Ports are {}".format(available_ports))
         arduino_port = ""
         for port in available_ports:
             if 'Arduino Uno' in port[1]:
