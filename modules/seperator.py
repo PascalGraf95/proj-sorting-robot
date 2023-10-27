@@ -5,6 +5,7 @@ import time
 # verbose to Debug and get mor information in the Terminal Output
 verbose = True
 
+
 class Seperator:
     def __init__(self):
         # Establish a serial connection to the arduino
@@ -47,8 +48,22 @@ class Seperator:
         time.sleep(time_of_cycle)
         self.stop()
 
-if __name__ == '__main__':
+    def test_seperator(self):
+        self.start()
+        if input("Abort Enter") == "":
+            self.stop()
+        else:
+            self.stop()
+        return
+
+
+def main():
     # Testing the if the seperator starts moving
     seperator = Seperator()
-    seperator.seperate_cycle(30)
+    seperator.test_seperator()
     seperator.disconnect()
+    return
+
+
+if __name__ == '__main__':
+    main()
