@@ -443,7 +443,7 @@ def get_object_angles(rectangles):
 
 
 def main():
-    image = cv2.imread(r"C:\Users\Drumm\OneDrive\Bilder\220101_diascan\vlcsnap-2022-01-20-16h53m03s560.jpg")
+    image = cv2.imread(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images\230424_123759_images")
     show_image(image)
 
     patch = get_image_patch(image, (610, 610), (40, 40))
