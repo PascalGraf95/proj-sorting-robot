@@ -1,6 +1,7 @@
 from modules.misc import serial_ports
 import serial
 import time
+import struct
 
 # verbose to Debug and get mor information in the Terminal Output
 verbose = True
@@ -8,6 +9,7 @@ verbose = True
 
 class Seperator:
     def __init__(self):
+        """Initialize the Seperator"""
         # Establish a serial connection to the arduino
         available_ports = serial_ports()
         if verbose:
@@ -26,16 +28,36 @@ class Seperator:
         self.running = False
         time.sleep(2)  # Seems necessary for serial connection to establish correctly
 
-    def start(self):
+    def forward(self):
+        """Move the Seperator forward"""
         if verbose:
-            print("[INFO] Seperator Start")
-        self.serial_connection.write(b'\x01')
+            print("[INFO] Seperator forward")
+        command = b'\x01' + b'\x00'
+        self.serial_connection.write(command)
+        self.running = True
+
+    def backward(self):
+        """Move the Seperator backward."""
+        if verbose:
+            print("[INFO] Seperator backward")
+        command = b'\x02' + b'\x00'
+        self.serial_connection.write(command)
         self.running = True
 
     def stop(self):
+        """Stop the Seperator"""
         if verbose:
             print("[INFO] Seperator Stop")
-        self.serial_connection.write(b'\x02')
+        command = b'\xFF' + b'\x00'
+        self.serial_connection.write(command)
+        self.running = False
+
+    def jiggle(self):
+        """Jiggle the Seperator (3Steps forward/One Step Backward)"""
+        if verbose:
+            print("[INFO] Seperator jiggle")
+        command = b'\x04' + b'\x00'
+        self.serial_connection.write(command)
         self.running = False
 
     def disconnect(self):
@@ -48,12 +70,44 @@ class Seperator:
         time.sleep(time_of_cycle)
         self.stop()
 
+    def do_stepps(self, n_steps):
+        #if verbose:
+            #print("[INFO] Seperator STEPs")
+        byte_representation = n_steps.to_bytes(1, byteorder='big')
+        print(byte_representation)
+        command = b'\x03' + byte_representation
+        #command = b'\x03' + struct.pack('!H', n_steps)
+        self.serial_connection.write(command)
+
+
     def test_seperator(self):
-        self.start()
-        if input("Abort Enter") == "":
-            self.stop()
-        else:
-            self.stop()
+        """Test the Seperator by providing Python Console Input for control."""
+        print("Select the Mode:")
+        print("[1] Spin the Seperator Forward")
+        print("[2] Spin the Seperator Backward")
+        print("[3] Jiggle The Seperator")
+        print("[4] STOP")
+        print("[5] Choose amount of Forward Steps")
+        print("[9] END")
+        while True:
+            mode = input()
+            if mode == "1":
+                self.forward()
+            elif mode == "2":
+                self.backward()
+            elif mode == "3":
+                self.jiggle()
+            elif mode == "4":
+                self.stop()
+            elif mode == "5":
+                n_steps = int(input("How many steps should the Stepper do?"))
+                self.do_stepps(n_steps)
+            elif mode == "9":
+                self.stop()
+                break
+
+            separator_info = self.serial_connection.read(2)
+            print("[INFO] n_steps low/high set to {}", separator_info)
         return
 
 
