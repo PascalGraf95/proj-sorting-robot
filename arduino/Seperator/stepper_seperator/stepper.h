@@ -25,7 +25,9 @@ Define the pins and ports of the arduino to drive a stepper
 #define CMD_JIGGLE_MOTOR 0x04
 
 
-#define CMD_
+#define CMD_SET_ACCELERATION 0x05
+
+#define CMD_SET_VMAX 0x06
 
 
 #define MODE_OFF 0
@@ -33,3 +35,5 @@ Define the pins and ports of the arduino to drive a stepper
 #define MODE_FORWARD 2
 #define MODE_JIGGLE 3
 #define MODE_STEPS 4
+
+byte highByte, lowByte;

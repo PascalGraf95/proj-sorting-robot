@@ -19,12 +19,12 @@ int delaytime = 200;
 
 uint8_t steppsatonce = 1;
 
-// Vaqriable TO store the stepps
-int steppsData = 0;
-int n_steps = 0;
-byte highByte, lowByte;
+int acceleration = 500;
+int vmax = 1000;
 
-unsigned long timeoutMillis = millis() + 1000;  // Set a timeout of 1000 milliseconds
+// Variable to store the amount of the stepps
+int n_steps = 0;
+
 
 // Function prototypes
 void forwardstep(int delaytime, int steppsatonce);
@@ -35,8 +35,8 @@ void setup() {
   // Start the serial communication at 9600 baud
   Serial.begin(9600);
   // Set Velocity and Acceloration of the stepper
-  stepper.setMaxSpeed(1000); // Max Velocity in [Stepps/second]
-  stepper.setAcceleration(500); // Acceloration in [Stepps/second^2]
+  stepper.setMaxSpeed(vmax); // Max Velocity in [Stepps/second]
+  stepper.setAcceleration(acceleration); // Acceloration in [Stepps/second^2]
 }
 
 void loop() {
@@ -72,6 +72,16 @@ void loop() {
         Mode = MODE_JIGGLE;
         break;
         
+      case CMD_SET_ACCELERATION:
+        acceleration = static_cast<int>(lowByte);
+        stepper.setAcceleration(acceleration);
+        break;
+      
+      case CMD_SET_VMAX:
+        vmax = static_cast<int>(lowByte);
+        stepper.setMaxSpeed(vmax);
+        break;
+
       default:
         // ignore unknown commands
         Mode = MODE_OFF; // Safety feature

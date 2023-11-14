@@ -71,14 +71,28 @@ class Seperator:
         self.stop()
 
     def do_stepps(self, n_steps):
-        #if verbose:
-            #print("[INFO] Seperator STEPs")
+        if verbose:
+            print("[INFO] Seperator make {} Steps". format(n_steps))
         byte_representation = n_steps.to_bytes(1, byteorder='big')
         print(byte_representation)
         command = b'\x03' + byte_representation
-        #command = b'\x03' + struct.pack('!H', n_steps)
         self.serial_connection.write(command)
 
+    def setacceleration(self, acceleration):
+        if verbose:
+            print("[INFO] Acceleration set to: {}". format(acceleration))
+        byte_representation = acceleration.to_bytes(1, byteorder='big')
+        print(byte_representation)
+        command = b'\x05' + byte_representation
+        self.serial_connection.write(command)
+
+    def setVMax(self, vmax):
+        if verbose:
+            print("[INFO] Maximal Velocity set to: {} ". format(vmax))
+        byte_representation = vmax.to_bytes(1, byteorder='big')
+        print(byte_representation)
+        command = b'\x06' + byte_representation
+        self.serial_connection.write(command)
 
     def test_seperator(self):
         """Test the Seperator by providing Python Console Input for control."""
@@ -88,6 +102,8 @@ class Seperator:
         print("[3] Jiggle The Seperator")
         print("[4] STOP")
         print("[5] Choose amount of Forward Steps")
+        print("[6] Set acceleration")
+        print("[7] Set maximal velocity")
         print("[9] END")
         while True:
             mode = input()
@@ -102,9 +118,17 @@ class Seperator:
             elif mode == "5":
                 n_steps = int(input("How many steps should the Stepper do?"))
                 self.do_stepps(n_steps)
+            elif mode == "6":
+                acceleration = int(input("Set the acceleration to: "))
+                self.setacceleration(acceleration)
+            elif mode == "7":
+                vmax = int(input("Set maximal velocity to: "))
+                self.setVMax(vmax)
             elif mode == "9":
                 self.stop()
                 break
+            else:
+                print("[Warning] Input unknown")
 
             separator_info = self.serial_connection.read(2)
             print("[INFO] n_steps low/high set to {}", separator_info)
