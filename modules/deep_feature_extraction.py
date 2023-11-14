@@ -1,3 +1,5 @@
+import tensorflow as tf
+from tensorflow import keras
 import keras.losses
 import numpy as np
 from keras.applications import EfficientNetB1, EfficientNetB0, MobileNetV2, ResNet50V2
@@ -11,7 +13,6 @@ from data_handling import load_images_from_path
 from modules.dataset_from_directory import image_dataset_from_directory
 import os
 import matplotlib.pyplot as plt
-import tensorflow as tf
 from keras import layers
 from data_handling import *
 from keras.utils import plot_model
@@ -37,7 +38,7 @@ class DeepFeatureExtractor:
 
     def construct_feature_extractor(self):
         original_model = ResNet50V2(input_shape=self.input_shape, include_top=False)
-        plot_model(original_model, show_shapes=True)
+        # plot_model(original_model, show_shapes=True)
 
         x0 = original_model.get_layer("conv2_block1_out").output  # output size 56 x 56 x 256
         # x0 = MaxPooling2D(pool_size=28)(x0)
@@ -54,7 +55,7 @@ class DeepFeatureExtractor:
         x3 = GlobalMaxPooling2D()(x3)
         self.model = Model(inputs=original_model.inputs, outputs=[x0, x1, x2, x3, x4])
         self.model.summary()
-        plot_model(self.model, to_file="modified_model.png", show_shapes=True)
+        # plot_model(self.model, to_file="modified_model.png", show_shapes=True)
 
     def extract_features(self, image_batch):
         return self.model.predict(image_batch, verbose=0)
