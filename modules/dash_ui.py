@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 def main():
     # region 1. Feature Extraction
     feature_extractor = DeepFeatureExtractor(input_shape=(224, 224, 3))
-    dataset = open_data_from_directory("./sample_dataset/flower_images/flower_images")
-    dataset_images, dataset_image_paths, image_features = extract_dataset_features(feature_extractor, dataset)
+    dataset, dataset_image_paths = open_data_from_directory("./sample_dataset/flower_images/flower_images")
+    dataset_images, image_features = extract_dataset_features(feature_extractor, dataset, idx=0)
     # endregion
 
     # region 2. Dimensionality Reduction
@@ -41,23 +41,16 @@ def main():
     core_point_features = []
     for idx, (image, prob, label, path, feat) in enumerate(zip(dataset_images, cluster_probabilities,
                                                                cluster_labels, dataset_image_paths, reduced_features)):
-        if prob >= 0.01:
+        if prob >= 0.99:
             core_point_images.append(image)
             core_point_labels.append(label)
             core_point_original_indices.append(idx)
             core_point_image_paths.append(path)
             core_point_features.append(np.expand_dims(feat[:2], axis=0))
     core_point_features = np.concatenate(core_point_features)
+    # endregion
 
-    fig1 = plt.figure()
-    ax = fig1.add_subplot()
-    for l in np.unique(cluster_labels):
-        indices_where_label = np.where(cluster_labels == l)
-        ax.scatter(reduced_features[indices_where_label, 0], reduced_features[indices_where_label, 1], label=l)
-    ax.legend()
-    ax.grid(True)
-    fig1.suptitle("PCA Projected Data Points")
-
+    cluster_images = []
     label_unique = list(np.unique(cluster_labels))
     label_unique.sort()
     for idx, l in enumerate(label_unique):
@@ -74,17 +67,18 @@ def main():
             if cluster_labels[random_idx] == l:
                 axes.ravel()[idx].imshow(dataset_images[random_idx])
                 axes.ravel()[idx].axis('off')
-                axes.ravel()[idx].title.set_text("{:.2f}".format(cluster_probabilities[random_idx]))
+                axes.ravel()[idx].title.set_text("{}".format(dataset_image_paths[random_idx].split("\\")[-1]))
+                # axes.ravel()[idx].title.set_text("{:.2f}".format(cluster_probabilities[random_idx]))
                 idx += 1
             if idx == len_x_axis * len_y_axis:
                 break
         fig2.suptitle("Example Cluster #{:02d} Images".format(l))
 
-    # plt.show()
-    # endregion
+        plt.savefig("./cluster_images/cluster_{:02d}.png".format(l))
+        plt.close(fig2)
+    #plt.show()
 
     # region 5. Virtual Cluster Point Creation
-    """
     cluster_labels_no_outliers = list(np.unique(cluster_labels))
     cluster_labels_no_outliers.remove(-1)
     virtual_clusters = []
@@ -103,18 +97,19 @@ def main():
         virtual_clusters.append(cluster_points)
         virtual_cluster_labels += [l]*len(indices_in_label)
     virtual_clusters = np.concatenate(virtual_clusters)
-    """
+    # endregion
+
     # region 5. Plotting
     fig = go.Figure(
         data=[
             go.Scatter(
-                x=reduced_features[:, 0],
-                y=reduced_features[:, 1],
+                x=virtual_clusters[:, 0],
+                y=virtual_clusters[:, 1],
                 mode="markers",
                 marker=dict(
                     colorscale='viridis',
-                    color=cluster_labels[:],
-                    size=10,
+                    color=virtual_cluster_labels,
+                    size=15,
                     sizemode="diameter",
                     opacity=0.8,
                 )
@@ -125,12 +120,29 @@ def main():
 
     app = Dash(__name__)
     app.layout = html.Div([
-        html.H1("Semi Supervised Sorting"),
-        dcc.Graph(id="virtual_cluster_graph", figure=fig, clear_on_unhover=True,
-                  style={'width': '90vh', 'height': '90vh'}),
-        dcc.Tooltip(id="graph-tooltip"),
+        html.H1("Semi Supervised Sorting",
+                style={
+                    'textAlign': 'center',
+                    'color': '#7FDBFF'
+                }),
+        html.Div(children='Dash: A web application framework for your data.', style={
+            'textAlign': 'center',
+            'color': '#7FDBFF'
+        }),
+        html.Div(
+            [dcc.Graph(id="virtual_cluster_graph", figure=fig, clear_on_unhover=True,
+                      responsive=True, style={'width': '90vh', 'height': '90vh'}),
+            dcc.Tooltip(id="graph-tooltip")], style={"width": "100%", "height": "100%",}
+        ),
+        #html.Img(src=),
+        html.Div(dcc.Slider(min=0, max=10, id='slider')),
+        html.Button('Confirm', id='submit-val', n_clicks=0),
     ])
     # endregion
+
+    # region Callbacks
+    # @callback(Input("virtual_cluster_graph", "clickData"))
+    # @callback(Input("virtual_cluster_graph", "selectedData"))
 
     @callback(
         Output("graph-tooltip", "show"),
@@ -145,11 +157,11 @@ def main():
         # demo only shows the first point, but other points may also be available
         pt = hoverData["points"][0]
         bbox = pt["bbox"]
-        core_idx = pt["pointNumber"] # cluster_pt_to_core_idx[pt["pointNumber"]]
+        core_idx = cluster_pt_to_core_idx[pt["pointNumber"]]
 
-        img_src = dataset_image_paths[core_idx]
+        img_src = core_point_image_paths[core_idx]
         name = "Image"
-        label = cluster_labels[core_idx]
+        hover_label = core_point_labels[core_idx]
 
         im = Image.open(img_src).convert('RGB')
 
@@ -163,12 +175,13 @@ def main():
             html.Div([
                 html.Img(src=im_url, style={"width": "100%"}),
                 html.H2(f"{name}", style={"color": "darkblue", "overflow-wrap": "break-word"}),
-                html.P(f"LABEL: {label}"),
+                html.P(f"LABEL: {hover_label}"),
                 html.P(f"CORE: {core_idx}"),
             ], style={'width': '200px', 'white-space': 'normal'})
         ]
 
         return True, bbox, children
+    # endregion
 
     app.run(debug=False)
 

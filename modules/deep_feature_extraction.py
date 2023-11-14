@@ -2,13 +2,13 @@ import keras.losses
 import numpy as np
 from keras.applications import EfficientNetB1, EfficientNetB0, MobileNetV2, ResNet50V2
 from keras.models import load_model
-from keras.layers import GlobalAveragePooling2D, Dense, GlobalMaxPooling2D
+from keras.layers import GlobalAveragePooling2D, Dense, GlobalMaxPooling2D, MaxPooling2D, Flatten, Concatenate
 # from keras.applications.efficientnet import preprocess_input
 from keras import layers
 from keras import optimizers
 from keras import Model
 from data_handling import load_images_from_path
-from keras.utils import image_dataset_from_directory
+from modules.dataset_from_directory import image_dataset_from_directory
 import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -40,14 +40,19 @@ class DeepFeatureExtractor:
         plot_model(original_model, show_shapes=True)
 
         x0 = original_model.get_layer("conv2_block1_out").output  # output size 56 x 56 x 256
+        # x0 = MaxPooling2D(pool_size=28)(x0)
         x0 = GlobalMaxPooling2D()(x0)
+        # x0 = Flatten()(x0)
         x1 = original_model.get_layer("conv2_block3_out").output  # output size 28 x 28 x 256
+        # x1 = MaxPooling2D(pool_size=14)(x1)
+        # x1 = Flatten()(x1)
         x1 = GlobalMaxPooling2D()(x1)
         x2 = original_model.get_layer("conv3_block4_out").output  # output size 14 x 14 x 512
         x2 = GlobalMaxPooling2D()(x2)
+        x4 = Concatenate()([x0, x1, x2])
         x3 = original_model.get_layer("conv5_block3_out").output  # output size 7 x 7 x 2048
         x3 = GlobalMaxPooling2D()(x3)
-        self.model = Model(inputs=original_model.inputs, outputs=[x0, x1, x2, x3])
+        self.model = Model(inputs=original_model.inputs, outputs=[x0, x1, x2, x3, x4])
         self.model.summary()
         plot_model(self.model, to_file="modified_model.png", show_shapes=True)
 
@@ -56,60 +61,59 @@ class DeepFeatureExtractor:
 
 
 def open_data_from_directory(data_directory):
-    dataset = tf.keras.utils.image_dataset_from_directory(data_directory,
-                                                          labels=None,
-                                                          label_mode=None,
-                                                          class_names=None,
-                                                          color_mode="rgb",
-                                                          batch_size=32,
-                                                          image_size=(224, 224),
-                                                          shuffle=True,
-                                                          seed=None,
-                                                          validation_split=None,
-                                                          subset=None,
-                                                          interpolation="bilinear",
-                                                          follow_links=False,
-                                                          crop_to_aspect_ratio=True)
-    return dataset
+    dataset, image_paths = image_dataset_from_directory(data_directory,
+                                                        labels=None,
+                                                        label_mode=None,
+                                                        class_names=None,
+                                                        color_mode="rgb",
+                                                        batch_size=32,
+                                                        image_size=(224, 224),
+                                                        shuffle=False,
+                                                        seed=None,
+                                                        validation_split=None,
+                                                        subset=None,
+                                                        interpolation="bilinear",
+                                                        follow_links=False,
+                                                        crop_to_aspect_ratio=True)
+    return dataset, image_paths
 
 
 def extract_dataset_features(feature_extractor: DeepFeatureExtractor,
-                             dataset):
+                             dataset, idx=0):
     image_features = []
     images = []
-    image_paths = dataset.file_paths
+    # image_paths = dataset.file_paths
     for x in dataset:
         images.append(x.numpy().astype(np.uint8))
         x = feature_extractor.preprocess_images(x)
-        f = feature_extractor.extract_features(x)[0]
+        f = feature_extractor.extract_features(x)[idx]
         image_features.append(f)
     image_features = np.concatenate(image_features, axis=0)
     images = np.concatenate(images, axis=0)
-    return images, image_paths, image_features
+    return images, image_features
 
 
 if __name__ == '__main__':
     # region 1. Deep Feature Extraction
     feature_extractor = DeepFeatureExtractor(input_shape=(224, 224, 3))
 
-    dataset = tf.keras.utils.image_dataset_from_directory(r"A:\Arbeit\Github\proj-sorting-robot\stored_images\230424_140506_images",
-                                                          labels=None,
-                                                          label_mode=None,
-                                                          class_names=None,
-                                                          color_mode="rgb",
-                                                          batch_size=32,
-                                                          image_size=(224, 224),
-                                                          shuffle=True,
-                                                          seed=None,
-                                                          validation_split=None,
-                                                          subset=None,
-                                                          interpolation="bilinear",
-                                                          follow_links=False,
-                                                          crop_to_aspect_ratio=True)
+    dataset, image_paths = image_dataset_from_directory(r"A:\Arbeit\Github\proj-sorting-robot\stored_images\230424_140506_images",
+                                                        labels=None,
+                                                        label_mode=None,
+                                                        class_names=None,
+                                                        color_mode="rgb",
+                                                        batch_size=32,
+                                                        image_size=(224, 224),
+                                                        shuffle=True,
+                                                        seed=None,
+                                                        validation_split=None,
+                                                        subset=None,
+                                                        interpolation="bilinear",
+                                                        follow_links=False,
+                                                        crop_to_aspect_ratio=True)
 
     image_features = []
     images = []
-    image_paths = dataset.file_paths
     for x in dataset:
         images.append(x.numpy().astype(np.uint8))
         x = feature_extractor.preprocess_images(x)
@@ -120,7 +124,7 @@ if __name__ == '__main__':
     # endregion
 
     # region 2. Dimensionality Reduction
-    pca = PCA(n_components=5)
+    pca = PCA(n_components=30)
     # ToDo: Define minimum summed explained variance
 
     reduced_features = pca.fit_transform(image_features)
