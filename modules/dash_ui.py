@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans, DBSCAN, MeanShift, SpectralClustering, AgglomerativeClustering, OPTICS, HDBSCAN
 from deep_feature_extraction import DeepFeatureExtractor, open_data_from_directory, extract_dataset_features
-from transformers import AutoImageProcessor, Dinov2Model
+# from transformers import AutoImageProcessor, Dinov2Model
 from sklearn.neighbors import NearestNeighbors
 from PIL import Image
 import io
@@ -34,16 +34,18 @@ def main():
     # region Clustering
     hdbscan = HDBSCAN(min_cluster_size=4, min_samples=None, cluster_selection_epsilon=0.0, metric='euclidean',
                       algorithm='auto', cluster_selection_method='eom', allow_single_cluster=False,
-                      store_centers="centroid")
+                      store_centers="medoid")
     hdbscan.fit(reduced_features)
     cluster_probabilities = hdbscan.probabilities_
     cluster_labels = hdbscan.labels_
+    cluster_medoids = hdbscan.medoids_
 
     fig = plt.figure()
     ax = fig.add_subplot()
     for l in np.unique(cluster_labels):
         indices_where_label = np.where(cluster_labels == l)
         ax.scatter(reduced_features[indices_where_label, 0], reduced_features[indices_where_label, 1], label=l)
+    ax.scatter(cluster_medoids[:, 0], cluster_medoids[:, 1], c="r")
     ax.legend()
     ax.grid(True)
     fig.suptitle("TSNE Projected Data Points")
@@ -66,8 +68,8 @@ def main():
             if cluster_labels[random_idx] == l:
                 axes.ravel()[idx].imshow(dataset_images[random_idx])
                 axes.ravel()[idx].axis('off')
-                axes.ravel()[idx].title.set_text("{}".format(dataset_image_paths[random_idx].split("\\")[-1]))
-                # axes.ravel()[idx].title.set_text("{:.2f}".format(cluster_probabilities[random_idx]))
+                # axes.ravel()[idx].title.set_text("{}".format(dataset_image_paths[random_idx].split("\\")[-1]))
+                axes.ravel()[idx].title.set_text("{:.2f}".format(cluster_probabilities[random_idx]))
                 idx += 1
             if idx == len_x_axis * len_y_axis:
                 break
@@ -78,6 +80,96 @@ def main():
     plt.close(fig)
     # endregion
 
+    # region Cluster Splitting
+    # Idea 1: Calculate the distances between each point in a cluster. Then compare the images for points the
+    # furthest apart. Either cluster again only for these points or calculate membership depending on distance.
+    for idx, l in enumerate(label_unique):
+        if l == -1:
+            continue
+        indices_in_label = np.where(cluster_labels == l)[0]
+        features_in_label = reduced_features[indices_in_label]
+        distances = scipy.spatial.distance.cdist(features_in_label, features_in_label)
+        # print(np.argmax(dist_reduced))
+        argsort_indices = np.argsort(-distances.flatten())
+        argsort_indices = [np.unravel_index(ax, distances.shape) for ax in argsort_indices]
+
+        fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(2 * 2, 2 * 4))
+        for i in range(4):
+            image1, image2 = dataset_images[indices_in_label[argsort_indices[i*2][0]]], \
+                dataset_images[indices_in_label[argsort_indices[i*2][1]]]
+
+            axes[i][0].imshow(image1)
+            axes[i][0].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][0]))
+            axes[i][0].axis('off')
+
+            axes[i][1].imshow(image2)
+            axes[i][1].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][1]))
+            axes[i][1].axis('off')
+    plt.show()
+
+    # Idea 2: Calculate the variance in each of the 5 reduced feature dimensions per cluster. Get the dimension with
+    # the highest variance and compare images the furthest apart in that dimension. Then again, re-cluster with one
+    # of the methods above.
+    for idx, l in enumerate(label_unique):
+        if l == -1:
+            continue
+        indices_in_label = np.where(cluster_labels == l)[0]
+        features_in_label = reduced_features[indices_in_label]
+        variances = np.var(features_in_label, axis=0)
+        variance_argmax = np.argmax(variances)
+        expanded_features = np.expand_dims(features_in_label[:, variance_argmax], axis=1)
+        distances = scipy.spatial.distance.cdist(expanded_features, expanded_features)
+        # print(np.argmax(dist_reduced))
+        argsort_indices = np.argsort(-distances.flatten())
+        argsort_indices = [np.unravel_index(ax, distances.shape) for ax in argsort_indices]
+
+        fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(2 * 2, 2 * 4))
+        for i in range(4):
+            image1, image2 = dataset_images[indices_in_label[argsort_indices[i * 2][0]]], \
+                dataset_images[indices_in_label[argsort_indices[i * 2][1]]]
+
+            axes[i][0].imshow(image1)
+            axes[i][0].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][0]))
+            axes[i][0].axis('off')
+
+            axes[i][1].imshow(image2)
+            axes[i][1].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][1]))
+            axes[i][1].axis('off')
+        plt.show()
+    # endregion
+
+
+    # region Cluster Fusion
+    # Idea: For each cluster medoid calculate the distance to other medoids. Then take the closest samples of two
+    # clusters and ask if they should be merged.
+    for idx, l in enumerate(label_unique):
+        if l == -1:
+            continue
+        target_cluster_medoid = cluster_medoids[idx-1]
+        cluster_distances = scipy.spatial.distance.cdist(target_cluster_medoid, cluster_medoids)
+        cluster_dist_sorted = np.argsort(-cluster_distances)
+
+        target_cluster_indices = np.where(cluster_labels == l)[0]
+
+        fig, axes = plt.subplots(nrows=3, ncols=4, figsize=(4 * 2, 3 * 4))
+        for i in range(3):
+            indices_in_label = np.where(cluster_labels == cluster_dist_sorted[i+1]-1)[0]
+
+            cluster_point_distances = scipy.spatial.distance.cdist(reduced_features[target_cluster_indices],
+                                                                   reduced_features[indices_in_label])
+
+            image1, image2 = dataset_images[indices_in_label[argsort_indices[i*2][0]]], \
+                dataset_images[indices_in_label[argsort_indices[i*2][1]]]
+
+            axes[i][0].imshow(image1)
+            axes[i][0].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][0]))
+            axes[i][0].axis('off')
+
+            axes[i][1].imshow(image2)
+            axes[i][1].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][1]))
+            axes[i][1].axis('off')
+    plt.show()
+    # endregion
     # region Outlier Queue
     outlier_indices = np.where(cluster_labels == -1)[0]
     for idx in outlier_indices:
@@ -109,8 +201,7 @@ def main():
         plt.show()
     # endregion
 
-
-
+    # region SVM
     x_train, y_train = [], []
     for idx, (feat, label) in enumerate(zip(image_features, cluster_labels)):
         if label != -1:
@@ -124,13 +215,14 @@ def main():
     lin_clf.fit(x_train, y_train)
 
     svc_labels = lin_clf.predict(image_features)
+    # endregion
 
+    # region Points that Changed
     images_that_changed_label = []
     old_label = []
     new_label = []
     for idx, (svc_prediction, cluster_prediction) in enumerate(zip(svc_labels, cluster_labels)):
         if svc_prediction != cluster_prediction:
-            print("CHANGED")
             images_that_changed_label.append(dataset_images[idx])
             old_label.append(cluster_prediction)
             new_label.append(svc_prediction)
@@ -148,6 +240,7 @@ def main():
         fig.suptitle("Images that changed labels")
     plt.show()
     plt.close(fig)
+    # endregion
 
 
     """
