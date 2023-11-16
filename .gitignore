@@ -1,7 +1,10 @@
 stored_images
+Testing/YoloObjektDetection
 .idea/misc.xml
 .idea/proj-camera-controller.iml
 *.pyc
 __pycache__/
 modules/Datacollection/conveyor.mp4
 *.avi
+*.ipynb
+*.weights
