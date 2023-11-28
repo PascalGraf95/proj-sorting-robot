@@ -75,7 +75,6 @@ def main():
                 break
         fig.suptitle("Example Cluster #{:02d} Images".format(l))
         plt.savefig("./cluster_images/cluster_{:02d}.png".format(l))
-
     plt.show()
     plt.close(fig)
     # endregion
@@ -105,11 +104,13 @@ def main():
             axes[i][1].imshow(image2)
             axes[i][1].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][1]))
             axes[i][1].axis('off')
+        fig.suptitle("Cluster Splitting: Cluster {}".format(l))
     plt.show()
-
+    plt.close(fig)
     # Idea 2: Calculate the variance in each of the 5 reduced feature dimensions per cluster. Get the dimension with
     # the highest variance and compare images the furthest apart in that dimension. Then again, re-cluster with one
     # of the methods above.
+    """
     for idx, l in enumerate(label_unique):
         if l == -1:
             continue
@@ -135,9 +136,10 @@ def main():
             axes[i][1].imshow(image2)
             axes[i][1].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][1]))
             axes[i][1].axis('off')
-        plt.show()
+    plt.show()
+    plt.close(fig)
+    """
     # endregion
-
 
     # region Cluster Fusion
     # Idea: For each cluster medoid calculate the distance to other medoids. Then take the closest samples of two
@@ -146,29 +148,55 @@ def main():
         if l == -1:
             continue
         target_cluster_medoid = cluster_medoids[idx-1]
-        cluster_distances = scipy.spatial.distance.cdist(target_cluster_medoid, cluster_medoids)
-        cluster_dist_sorted = np.argsort(-cluster_distances)
+        cluster_distances = scipy.spatial.distance.cdist(np.expand_dims(target_cluster_medoid, axis=0),
+                                                         cluster_medoids)[0]
+        cluster_dist_sorted = np.argsort(cluster_distances)
 
         target_cluster_indices = np.where(cluster_labels == l)[0]
-
-        fig, axes = plt.subplots(nrows=3, ncols=4, figsize=(4 * 2, 3 * 4))
+        target_cluster_features = reduced_features[target_cluster_indices]
+        fig, axes = plt.subplots(nrows=3, ncols=6, figsize=(4 * 2, 3 * 4))
         for i in range(3):
-            indices_in_label = np.where(cluster_labels == cluster_dist_sorted[i+1]-1)[0]
+            closest_label = cluster_dist_sorted[i+1]
+            closest_cluster_indices = np.where(cluster_labels == closest_label)[0]
+            closest_cluster_features = reduced_features[closest_cluster_indices]
 
-            cluster_point_distances = scipy.spatial.distance.cdist(reduced_features[target_cluster_indices],
-                                                                   reduced_features[indices_in_label])
+            cluster_point_distances = scipy.spatial.distance.cdist(target_cluster_features, closest_cluster_features)
+            argsort_indices = np.argsort(cluster_point_distances.flatten())
+            argsort_indices = [np.unravel_index(ax, cluster_point_distances.shape) for ax in argsort_indices]
 
-            image1, image2 = dataset_images[indices_in_label[argsort_indices[i*2][0]]], \
-                dataset_images[indices_in_label[argsort_indices[i*2][1]]]
+            target_cluster_image_1 = dataset_images[target_cluster_indices[argsort_indices[0][0]]]
+            target_cluster_image_2 = dataset_images[target_cluster_indices[argsort_indices[1][0]]]
+            target_cluster_image_3 = dataset_images[target_cluster_indices[argsort_indices[2][0]]]
 
-            axes[i][0].imshow(image1)
-            axes[i][0].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][0]))
+            closest_cluster_image_1 = dataset_images[closest_cluster_indices[argsort_indices[0][1]]]
+            closest_cluster_image_2 = dataset_images[closest_cluster_indices[argsort_indices[1][1]]]
+            closest_cluster_image_3 = dataset_images[closest_cluster_indices[argsort_indices[2][1]]]
+
+            axes[i][0].imshow(target_cluster_image_1)
+            axes[i][0].title.set_text("Target 1")
             axes[i][0].axis('off')
 
-            axes[i][1].imshow(image2)
-            axes[i][1].title.set_text("Image IDX: {}".format(argsort_indices[i * 2][1]))
+            axes[i][1].imshow(target_cluster_image_2)
+            axes[i][1].title.set_text("Target 2")
             axes[i][1].axis('off')
-    plt.show()
+
+            axes[i][2].imshow(target_cluster_image_3)
+            axes[i][2].title.set_text("Target 2")
+            axes[i][2].axis('off')
+
+            axes[i][3].imshow(closest_cluster_image_1)
+            axes[i][3].title.set_text("Closest 1")
+            axes[i][3].axis('off')
+
+            axes[i][4].imshow(closest_cluster_image_2)
+            axes[i][4].title.set_text("Closest 2")
+            axes[i][4].axis('off')
+
+            axes[i][5].imshow(closest_cluster_image_3)
+            axes[i][5].title.set_text("Closest 3")
+            axes[i][5].axis('off')
+        fig.suptitle("Cluster Fusion: Cluster {}".format(l))
+        plt.show()
     # endregion
     # region Outlier Queue
     outlier_indices = np.where(cluster_labels == -1)[0]

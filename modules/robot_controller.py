@@ -53,7 +53,6 @@ class DoBotRobotController:
                 if verbose:
                     print("[INFO] DoBot Port set to {}".format(dobot_port))
                 break
-                break
         if dobot_port == "":
             raise ConnectionError("[ERROR] DoBot port could not be found!")
         return AsyncRobot(SyncDobot(dobotMagicianController(port=dobot_port)))
