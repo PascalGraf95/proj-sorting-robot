@@ -19,7 +19,7 @@ class Seperator:
             if 'Arduino Uno' in port[1]:
                 arduino_port = port[0]
                 if verbose:
-                    print("[INFO] Arduino Port set to {}".format(arduino_port))
+                    print("[INFO] Seperator Port set to {}".format(arduino_port))
                 break
         if arduino_port == "":
             raise ConnectionError("[ERROR] Seperator port could not be found!")
@@ -46,11 +46,11 @@ class Seperator:
 
     def stop(self):
         """Stop the Seperator"""
-        if verbose:
-            print("[INFO] Seperator Stop")
         command = b'\xFF' + b'\x00'
         self.serial_connection.write(command)
         self.running = False
+        if verbose:
+            print("[INFO] Seperator Stop")
 
     def jiggle(self):
         """Jiggle the Seperator (3Steps forward/One Step Backward)"""

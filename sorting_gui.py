@@ -264,7 +264,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         if self._camera and self._conveyor_belt:
             self.data_collection_active = True
             self._conveyor_belt.start()
-            self._seperator.start()
+            self._seperator.forward()
             self.combo_cluster.clear()
             self.data_collection_timer.start(2000)
             self.sorting_active = False
@@ -318,7 +318,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         else:
             if not self._conveyor_belt.is_running():
                 self._conveyor_belt.start()
-                self._seperator.start()
+                self._seperator.forward()
 
         if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
             # Get the first object which is the one furthest to the left on the conveyor.
