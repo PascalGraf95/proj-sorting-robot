@@ -195,7 +195,7 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
         # directly warp the rotated rectangle to get the straightened rectangle
         warped_image = cv2.warpPerspective(image, warp_matrix, (int(width), int(height)))
         if height > width:
-            warped_image = cv2.rotate(warped_image, cv2.cv2.ROTATE_90_CLOCKWISE)
+            warped_image = cv2.rotate(warped_image, cv2.ROTATE_90_CLOCKWISE)
         image_list.append(warped_image)
     return image_list
 
