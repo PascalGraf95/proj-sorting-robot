@@ -1,13 +1,13 @@
 import keras.losses
-from keras.applications import EfficientNetB1, EfficientNetB0, MobileNetV2
 from keras.models import load_model
 from keras.layers import GlobalAveragePooling2D, Dense
+from keras.applications import EfficientNetB1, EfficientNetB0, MobileNetV2
 from keras.applications.efficientnet import preprocess_input
+from keras.utils import image_dataset_from_directory
 from keras import layers
 from keras import optimizers
 from keras import Model
 from data_handling import load_images_from_path
-from keras.utils import image_dataset_from_directory
 import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -168,6 +168,7 @@ class VAEFeatureExtractor:
 
 def main():
     feature_extractor = VAEFeatureExtractor(latent_dim=64)
+    #ToDO: Directory anpassen
     dataset = image_dataset_from_directory(directory=r"A:\Arbeit\Github\proj-camera-controller\stored_images\test",
                                            image_size=(56, 56), batch_size=16)
     loss = []
