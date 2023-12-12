@@ -12,6 +12,8 @@ class ConveyorBelt:
         for port in available_ports:
             if 'Arduino Mega 2560' in port[1]:
                 arduino_port = port[0]
+                if verbose:
+                    print("[INFO] Conveyor Port set to {}".format(arduino_port))
                 break
         if arduino_port == "":
             raise ConnectionError("[ERROR] Conveyor port could not be found!")
