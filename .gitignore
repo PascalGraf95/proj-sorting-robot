@@ -8,4 +8,8 @@ modules/Datacollection/conveyor.mp4
 *.avi
 *.ipynb
 *.weights
-Testing/
+
+.idea/vcs.xml
+Testing/TrainingV1
+Testing/TrainingV2
+evaluate/
