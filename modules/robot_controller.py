@@ -7,6 +7,8 @@ import time
 import numpy as np
 from modules.misc import serial_ports
 
+verbose = False
+
 
 robot_state_dictionary = {0: "Robot Ready", 1: "Robot at Standby Position", 2: "Robot approaching Storage Position",
                           3: "Robot approaching Standby Position"}
@@ -20,7 +22,7 @@ class DoBotRobotController:
         self.work_frame = work_frame
 
         # Set conveyor height and maneuvering height in work frame coordinates
-        self.conveyor_height = -59.5
+        self.conveyor_height = -58.5
         self.maneuvering_height = -20
         self.standby_height = 60
         self.standby_position_right = (-40, 190, self.maneuvering_height, 0, 0, 0)
@@ -48,6 +50,9 @@ class DoBotRobotController:
         for port in available_ports:
             if 'Silicon Labs CP210x' in port[1]:
                 dobot_port = port[0]
+                if verbose:
+                    print("[INFO] DoBot Port set to {}".format(dobot_port))
+                break
                 break
         if dobot_port == "":
             raise ConnectionError("[ERROR] DoBot port could not be found!")
