@@ -443,7 +443,7 @@ def get_object_angles(rectangles):
 
 
 def main():
-    image = cv2.imread(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images\230424_123759_images")
+    image = cv2.imread(r"../Testing/YoloObjektDetection/Images/Dataset/Srews_Nuts_Washers/1.jpg")
     show_image(image)
 
     patch = get_image_patch(image, (610, 610), (40, 40))
@@ -456,7 +456,6 @@ def main():
     corrected_image = correct_image_white_balance(image, correction_factors)
     show_image(image)
     show_image(corrected_image)
-
 
 
 if __name__ == '__main__':

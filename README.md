@@ -21,5 +21,6 @@ The objects are guided over the conveyor belt and recorded by a camera. The coll
 - Conveyor belt
 - Separation system
 
-
+## Software Setup
+Check Requirements.txt
 
