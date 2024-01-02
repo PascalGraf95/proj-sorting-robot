@@ -31,7 +31,7 @@ def detect(save_img=False):
     half = device.type != 'cpu'  # half precision only supported on CUDA
 
     # Load model
-    model = attempt_load(weights, map_location=device)  # load FP32 model
+    model = attempt_load(weights, map_location=device)  # load FP32 modelF*
     stride = int(model.stride.max())  # model stride
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
