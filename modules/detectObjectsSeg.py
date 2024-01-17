@@ -5,6 +5,7 @@ sys.path.append(str(modules_path))
 import numpy as np
 import torch
 import image_processing as ip
+import os
 
 from models.common import DetectMultiBackend
 from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
@@ -197,62 +198,97 @@ def main():
     print('[INFO] Load Model From Path')
     model = v7mod.loadModel(str(modules_path)+'/'+'runs/train-seg/Final2/weights/best.pt')
     print('[INFO] Load Model done')
-    image_path = rTCP.rec_img()
+    #image_path = rTCP.rec_img_by_TCP(port=12346)
     #image_path = select_image()
     #data = v7mod.loadData('../Datasets/camRender.png')
-    data = v7mod.loadData(image_path)
-    dt = (Profile(), Profile(), Profile())
 
-    for path, im, im0s, vid_cap, s in data:
-        original = im0s
-        pred, proto, im = v7mod.predict(model=model, im=im, dt=dt)
+    folder_path = '../Datasets/REC_TCP_Image'
+    flag = False
 
-        for i, det in enumerate(pred):  # per image
-            print(f'Detected {len(det)} Objects')
+    while True:
 
-            contours = []
-            p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
+        files = os.listdir(folder_path)
+        if not files:
+            if flag is False:
+                print(f"Wait for Data in {folder_path}")
+                flag = True
+            continue
 
-            if len(det):
-                masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
+        for file_name in files:
+            image_path = os.path.join(folder_path, file_name)
 
-                # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
+            data = v7mod.loadData(image_path)
+            dt = (Profile(), Profile(), Profile())
 
-                object_coordinates = get_object_coordinates_from_mask(masks)
-                binary_borders = gen_image(object_coordinates, showImage=False)
-                binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
+            # If a file is found
+            if os.path.isfile(image_path):
 
-                # Detect the contours in the Threshold Mask
-                raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0], mode=cv2.RETR_TREE,
-                                                           method=cv2.CHAIN_APPROX_NONE)
+                for path, im, im0s, vid_cap, s in data:
+                    original = im0s
+                    pred, proto, im = v7mod.predict(model=model, im=im, dt=dt)
 
-                # Filter contours by size
-                for c in raw_contours:
-                    if 50 < c.size < 3400:
-                        contours.append(c)
-                print(f'[INFO] {len(contours)} viable contours found')
+                    for i, det in enumerate(pred):  # per image
+                        print(f'Detected {len(det)} Objects')
 
-            # Generate Image with just the Objects
-            # contour_img = np.zeros_like(original)
+                        contours = []
+                        p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
 
-            # Apply the mask to the original image
-            # JustObjects = cv2.bitwise_and(original, contour_img)
+                        if len(det):
+                            masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
 
-            rectangles = ip.get_rects_from_contours(contours)
-            # bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-            # object_images = ip.warp_objects_horizontal(JustObjects, rectangles, bounding_boxes)
-            # standardized = ip.standardize_images(object_images)
+                            # Rescale boxes from img_size to im0 size
+                            det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
 
-            # Extract Features of rectangles
-            centers = [rec[0] for rec in rectangles]
+                            object_coordinates = get_object_coordinates_from_mask(masks)
+                            binary_borders = gen_image(object_coordinates, showImage=False)
+                            binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
 
-            # sizes = [rec[1] for rec in rectangles]
-            angles = [rec[2] for rec in rectangles]
+                            # Detect the contours in the Threshold Mask
+                            raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
+                                                                       mode=cv2.RETR_TREE,
+                                                                       method=cv2.CHAIN_APPROX_NONE)
 
-            # generateOutput(original, centers, angles, contours, bounding_boxes)
-            sendTCPmessage(centers, angles, 1, z=25, host_ip='127.0.0.1', port=12345)
+                            # Filter contours by size
+                            for c in raw_contours:
+                                if 50 < c.size < 3400:
+                                    contours.append(c)
+                            print(f'[INFO] {len(contours)} viable contours found')
 
+                        '''
+                        ## Needed to Cut the single Objects for 
+                        # Generate Image with just the Objects
+                        # contour_img = np.zeros_like(original)
+                        # Apply the mask to the original image
+                        # JustObjects = cv2.bitwise_and(original, contour_img)
+                        '''
+
+                        rectangles = ip.get_rects_from_contours(contours)
+                        # bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
+                        # object_images = ip.warp_objects_horizontal(JustObjects, rectangles, bounding_boxes)
+                        # standardized = ip.standardize_images(object_images)
+
+                        # Extract Features of rectangles
+                        centers = [rec[0] for rec in rectangles]
+
+                        # sizes = [rec[1] for rec in rectangles]
+                        angles = [rec[2] for rec in rectangles]
+
+                        try:
+                            # generateOutput(original, centers, angles, contours, bounding_boxes)
+                            sendTCPmessage(centers, angles, 1, z=25, host_ip='127.0.0.1', port=12346)
+                        except:
+                            pass
+
+                # deleting file
+                os.remove(image_path)
+                flag = False
+        
+        key = cv2.waitKey(1) & 0xFF
+        # Press Q or ESC to exit the While
+        if key == ord('q') or key == 27:  # 'q' oder Escape-Taste
+            break
+    
 
 if __name__ == '__main__':
+
     main()
