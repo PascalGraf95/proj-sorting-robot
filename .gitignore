@@ -28,6 +28,7 @@ evaluate/
 # Dataset Ignores
 /modules/NeuronalNetworks/*
 # Dataset exeptions
+!/modules/NeuronalNetworks/Autoencoder
 !/modules/NeuronalNetworks/Pretrained
 !/modules/NeuronalNetworks/Environments
 !/modules/NeuronalNetworks/README.md
