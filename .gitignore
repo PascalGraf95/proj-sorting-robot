@@ -18,11 +18,13 @@ evaluate/
 # Dataset exeptions
 !/Datasets/CADRender.png
 !/Datasets/GenROI.py
+!/Datasets/Load_from_Json.py
 !/Datasets/README.md
 
 
 # Dataset Ignores
-/modules/Neuronal Networks/*
+/modules/NeuronalNetworks/*
 
 # Dataset exeptions
-!/modules/Neuronal Networks/README.md
+!/modules/NeuronalNetworks/Pretrained
+!/modules/NeuronalNetworks/README.md
