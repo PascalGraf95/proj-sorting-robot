@@ -8,11 +8,21 @@ modules/Datacollection/conveyor.mp4
 *.ipynb
 *.weights
 .idea/vcs.xml
-Testing/TrainingV1
-Testing/TrainingV2
+Testing/*
 evaluate/
 .idea
-/Testing/Dataset.json
-/Testing/Scanned Data
-/Testing/
-/Datasets/Scanned Data/
+
+
+
+# Dataset Ignores
+Datasets/*
+
+# Dataset exeptions
+!Datasets/CADRender.png
+!Datasets/GenROI.py
+
+# Dataset Ignores
+modules/Neuronal Networks/*
+
+# Dataset exeptions
+!modules/Neuronal Networks/README.md
