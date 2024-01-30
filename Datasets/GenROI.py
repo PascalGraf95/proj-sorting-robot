@@ -1,11 +1,16 @@
 import os
 import cv2
 
-dir_path = os.path.join(os.getcwd(), '\Studierendenprojekte\proj-camera-controller_\Datasets\Lego\LegoClasses\Test Data\Raw')
+dir_path = 'Lego/LegoClasses/Raw'
+ROI_path = dir_path + '/ROI'
+
+left = 0
+right = 1700
+upper = 215
+lower = 950
 
 
 def main():
-    ROI_path = os.path.join(dir_path + '\ROI')
 
     if not os.path.exists(ROI_path):
         os.makedirs(ROI_path)
@@ -25,7 +30,8 @@ def main():
             img_path = os.path.join(dir_path, filename)
             img = cv2.imread(img_path)
 
-            roi_img = img[215:950, 0:1700]
+            # Cut Img
+            roi_img = img[upper:lower, left:right]
 
             output_path = os.path.join(ROI_path, filename)
             cv2.imwrite(output_path, roi_img)
