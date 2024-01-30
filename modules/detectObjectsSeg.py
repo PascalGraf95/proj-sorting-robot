@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-modules_path = Path('NeuronalNetworks/yolov7segmentation').resolve()
+modules_path = Path('NeuronalNetworks/yolov7-segmentation').resolve()
 sys.path.append(str(modules_path))
 
 import numpy as np
@@ -189,7 +189,7 @@ def generateOutput(original, centers, angles, contours, bounding_boxes, visualiz
     cv2.drawContours(original, contours, -1, (0, 255, 0), 5)
 
     # Save the image
-    cv2.imwrite('output.png', original)
+    cv2.imwrite('Datasets/output.png', original)
 
     # Scale by percentage
     scale_percent = 50  # Ändern Sie dies entsprechend Ihren Anforderungen

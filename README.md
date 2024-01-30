@@ -12,7 +12,7 @@ The processing of the data is carried out with by a neural network.
 ####
 The objects are guided over the conveyor belt and recorded by a camera. The collected data is then processed and sorted.
 ***
-![](attachments/Aufbau_Gesamt_2Persp.png)
+![Aufbau_Gesamt_2Persp.png](Attatchemnts%2FAufbau_Gesamt_2Persp.png)
 ***
 
 ## Hardware setup
