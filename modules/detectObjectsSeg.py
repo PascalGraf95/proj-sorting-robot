@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 modules_path = Path('NeuronalNetworks/yolov7segmentation').resolve()
 sys.path.append(str(modules_path))
+
 import numpy as np
 import torch
 import image_processing as ip
@@ -35,7 +36,7 @@ class SegModelObjectDetect:
         self.data = 'data/coco128.yaml'  # dataset.yaml path
         self.imgsz = (640, 640)
         self.classes = 1
-        self.conf_thres = 0.9  # confidence threshold
+        self.conf_thres = 0.95  # confidence threshold
         self.iou_thres = 0.2  # NMS IOU threshold
         self.max_det = 1000
 
@@ -89,7 +90,6 @@ def select_image():
 def scaleROI(img, x=0, y=175, w=1700, h=775):
     img = img[y:y+h, x:x+w]
     return img
-
 
 def scale_contour(cnt, scale):
     M = cv2.moments(cnt)
@@ -168,7 +168,7 @@ def sendTCPmessage(centers, angles, box_nr, z=25, host_ip='127.0.0.1', port=1234
             s.close()
 
 
-def generateOutput(original, centers, angles, contours, bounding_boxes):
+def generateOutput(original, centers, angles, contours, bounding_boxes, visualize=False):
     # Draw dot in center of each
     for cnt, cent in enumerate(centers):
         # print(cent)
@@ -187,12 +187,66 @@ def generateOutput(original, centers, angles, contours, bounding_boxes):
 
     # cv2.drawContours(original, contours, -1, (0, 255, 0), thickness=cv2.FILLED)
     cv2.drawContours(original, contours, -1, (0, 255, 0), 5)
-    cv2.imshow('im0', original)
-    cv2.waitKey(0)
-    cv2.destroyWindow('im0')
+
+    # Save the image
+    cv2.imwrite('output.png', original)
+
+    # Scale by percentage
+    scale_percent = 50  # Ändern Sie dies entsprechend Ihren Anforderungen
+    width = int(original.shape[1] * scale_percent / 100)
+    height = int(original.shape[0] * scale_percent / 100)
+    dim = (width, height)
+
+    # Scale down the output
+    resized_image = cv2.resize(original, dim, interpolation=cv2.INTER_AREA)
+    if visualize:
+        # Display the image
+        cv2.imshow('im0', resized_image)
+        cv2.waitKey(0)
+        cv2.destroyWindow('im0')
+
+
+def genBinary(binary_out, centers, contours, bounding_boxes, visualize=False):
+    cv2.imwrite('binary/binary_out.png', binary_out)
+    if visualize:
+        cv2.imshow('binary', binary_out)
+        cv2.waitKey(0)
+
+    cv2.drawContours(binary_out, contours, -1, (255, 255, 0), 5)
+
+    cv2.imwrite('binary/binary_out_cont.png', binary_out)
+    if visualize:
+        cv2.imshow('binary', binary_out)
+        cv2.waitKey(0)
+
+    cv2.drawContours(binary_out, contours, -1, (255, 255, 0), thickness=cv2.FILLED)
+    cv2.imwrite('binary/binary_out_cont_filled.png', binary_out)
+    if visualize:
+        cv2.imshow('binary', binary_out)
+        cv2.waitKey(0)
+
+    for box in bounding_boxes:
+        cv2.drawContours(binary_out, [box], 0, (0, 255, 0), 2)
+    cv2.imwrite('binary/binary_out_box.png', binary_out)
+
+    if visualize:
+        cv2.imshow('binary', binary_out)
+        cv2.waitKey(0)
+
+    for cnt, cent in enumerate(centers):
+        cv2.circle(binary_out, (int(cent[0]), int(cent[1])), 5, (0, 0, 255), -1)
+
+    cv2.imwrite('binary/binary_out_circ.png', binary_out)
+
+    if visualize:
+        cv2.imshow('binary', binary_out)
+        cv2.waitKey(0)
+
+    cv2.destroyAllWindows()
 
 
 def main():
+    TCP_docker_path = '../Datasets/REC_TCP_Image'
     print('[INFO] Generate segmentation model to detect object on the Conveyor belt')
     v7mod = SegModelObjectDetect()
     print('[INFO] Load Model From Path')
@@ -202,93 +256,96 @@ def main():
     #image_path = select_image()
     #data = v7mod.loadData('../Datasets/camRender.png')
 
-    folder_path = '../Datasets/REC_TCP_Image'
     flag = False
 
-    while True:
+    try :
 
-        files = os.listdir(folder_path)
-        if not files:
-            if flag is False:
-                print(f"Wait for Data in {folder_path}")
-                flag = True
-            continue
+        while True:
+            files = os.listdir(TCP_docker_path)
+            if not files:
+                if flag is False:
+                    print(f"[READY] Wait for Data in {TCP_docker_path}")
+                    flag = True
+                continue
 
-        for file_name in files:
-            image_path = os.path.join(folder_path, file_name)
+            for file_name in files:
+                image_path = os.path.join(TCP_docker_path, file_name)
 
-            data = v7mod.loadData(image_path)
-            dt = (Profile(), Profile(), Profile())
+                data = v7mod.loadData(image_path)
+                dt = (Profile(), Profile(), Profile())
 
-            # If a file is found
-            if os.path.isfile(image_path):
+                # If a file is found
+                if os.path.isfile(image_path):
 
-                for path, im, im0s, vid_cap, s in data:
-                    original = im0s
-                    pred, proto, im = v7mod.predict(model=model, im=im, dt=dt)
+                    for path, im, im0s, vid_cap, s in data:
+                        original = im0s
+                        pred, proto, im = v7mod.predict(model=model, im=im, dt=dt)
 
-                    for i, det in enumerate(pred):  # per image
-                        print(f'Detected {len(det)} Objects')
+                        for i, det in enumerate(pred):  # per image
+                            print(f'[INFO] Detected {len(det)} Objects')
 
-                        contours = []
-                        p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
+                            contours = []
+                            p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
 
-                        if len(det):
-                            masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
+                            if len(det):
+                                masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
 
-                            # Rescale boxes from img_size to im0 size
-                            det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
+                                # Rescale boxes from img_size to im0 size
+                                det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
 
-                            object_coordinates = get_object_coordinates_from_mask(masks)
-                            binary_borders = gen_image(object_coordinates, showImage=False)
-                            binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
+                                object_coordinates = get_object_coordinates_from_mask(masks)
+                                binary_borders = gen_image(object_coordinates, showImage=False)
+                                binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
 
-                            # Detect the contours in the Threshold Mask
-                            raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
-                                                                       mode=cv2.RETR_TREE,
-                                                                       method=cv2.CHAIN_APPROX_NONE)
+                                # Detect the contours in the Threshold Mask
+                                raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
+                                                                           mode=cv2.RETR_TREE,
+                                                                           method=cv2.CHAIN_APPROX_NONE)
 
-                            # Filter contours by size
-                            for c in raw_contours:
-                                if 50 < c.size < 3400:
-                                    contours.append(c)
-                            print(f'[INFO] {len(contours)} viable contours found')
+                                # Filter contours by size
+                                for c in raw_contours:
+                                    if 80 < c.size < 3400:
+                                        contours.append(c)
 
-                        '''
-                        ## Needed to Cut the single Objects for 
-                        # Generate Image with just the Objects
-                        # contour_img = np.zeros_like(original)
-                        # Apply the mask to the original image
-                        # JustObjects = cv2.bitwise_and(original, contour_img)
-                        '''
+                                print(f'[INFO] {len(contours)} viable Objects found')
 
-                        rectangles = ip.get_rects_from_contours(contours)
-                        # bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                        # object_images = ip.warp_objects_horizontal(JustObjects, rectangles, bounding_boxes)
-                        # standardized = ip.standardize_images(object_images)
+                            # Generate Image with just the Objects
+                            contour_img = np.zeros_like(original)
+                            for c in contours:
+                                cv2.drawContours(contour_img, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
 
-                        # Extract Features of rectangles
-                        centers = [rec[0] for rec in rectangles]
+                            # Apply the mask to the original image
+                            JustObjects = cv2.bitwise_and(original, contour_img)
+                            rectangles = ip.get_rects_from_contours(contours)
+                            bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
+                            object_images = ip.warp_objects_horizontal(JustObjects, rectangles, bounding_boxes)
 
-                        # sizes = [rec[1] for rec in rectangles]
-                        angles = [rec[2] for rec in rectangles]
+                            cv2.destroyAllWindows()
+                            standardized = ip.standardize_images(object_images)
 
-                        try:
-                            # generateOutput(original, centers, angles, contours, bounding_boxes)
-                            sendTCPmessage(centers, angles, 1, z=25, host_ip='127.0.0.1', port=12346)
-                        except:
-                            pass
+                            for cntr, stand in enumerate(standardized):
+                                cv2.imwrite(f'binary/standerdized{cntr}.png', stand)
 
-                # deleting file
-                os.remove(image_path)
-                flag = False
-        
-        key = cv2.waitKey(1) & 0xFF
-        # Press Q or ESC to exit the While
-        if key == ord('q') or key == 27:  # 'q' oder Escape-Taste
-            break
-    
+                            # Extract Features of rectangles
+                            centers = [rec[0] for rec in rectangles]
+
+                            # sizes = [rec[1] for rec in rectangles]
+                            angles = [rec[2] for rec in rectangles]
+
+                            try:
+                                # binary_out = cv2.cvtColor(binary_borders_scaled[:, :, 0], cv2.COLOR_GRAY2BGR)
+                                # genBinary(binary_out, centers=centers, contours=contours, bounding_boxes=bounding_boxes)
+                                generateOutput(original, centers, angles, contours, bounding_boxes, visualize=True)
+                                sendTCPmessage(centers, angles, 1, z=25, host_ip='127.0.0.1', port=12346)
+                            except:
+                                pass
+
+                    # deleting file
+                    os.remove(image_path)
+                    flag = False
+
+    except KeyboardInterrupt:
+        print("[INFO] Shut down detection")
 
 if __name__ == '__main__':
-
     main()

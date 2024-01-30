@@ -3,9 +3,9 @@ import socket
 from pathlib import Path
 
 
-def rec_img(displayRecImg=True):
+def rec_img_by_TCP(displayRecImg=True, port=12346):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(('127.0.0.1', 12346))
+    server.bind(('127.0.0.1', port))
     server.listen()
 
     print('[INFO] Waiting for Image')
