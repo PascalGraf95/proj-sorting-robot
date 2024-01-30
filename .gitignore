@@ -13,14 +13,16 @@ evaluate/
 .idea
 
 # Dataset Ignores
-Datasets/*
+/Datasets/*
 
 # Dataset exeptions
-!Datasets/CADRender.png
-!Datasets/GenROI.py
+!/Datasets/CADRender.png
+!/Datasets/GenROI.py
+!/Datasets/README.md
+
 
 # Dataset Ignores
-modules/Neuronal Networks/*
+/modules/Neuronal Networks/*
 
 # Dataset exeptions
-!modules/Neuronal Networks/README.md
+!/modules/Neuronal Networks/README.md
