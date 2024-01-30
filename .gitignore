@@ -4,5 +4,23 @@ stored_images
 *.pyc
 __pycache__/
 modules/Datacollection/conveyor.mp4
-/evaluate/VideoFiles/
-/Testing/
+*.avi
+*.ipynb
+*.weights
+.idea/vcs.xml
+Testing/*
+evaluate/
+.idea
+
+# Dataset Ignores
+Datasets/*
+
+# Dataset exeptions
+!Datasets/CADRender.png
+!Datasets/GenROI.py
+
+# Dataset Ignores
+modules/Neuronal Networks/*
+
+# Dataset exeptions
+!modules/Neuronal Networks/README.md
