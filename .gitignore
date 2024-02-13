@@ -32,3 +32,4 @@ evaluate/
 !/modules/NeuronalNetworks/Pretrained
 !/modules/NeuronalNetworks/Environments
 !/modules/NeuronalNetworks/README.md
+/Unreal Engine/

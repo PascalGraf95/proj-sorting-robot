@@ -75,6 +75,38 @@ class SegModelObjectDetect:
         return pred, proto, im
 
 
+class PerspectiveTransformMatrix:
+    def __init__(self):
+        # Camera points describe the corners of the camera perspective.
+        self.camera_points = [(0, 0), (2414, 0), (2414, 1144), (0, 1144)]
+        # Real points describe the same corners points in the COS (Coordinate System) of the Unreal Project.
+        self.real_points = [(-95, 76), (-95, 110), (-113, 110), (-113, 76)]
+        self.transformation_matrix = None
+
+    def create_perspective_transformation_matrix(self):
+        assert len(self.camera_points) == 4 and len(
+            self.real_points) == 4, "Exactly four points are needed for perspective transformation."
+
+        # Convert points to NumPy array format
+        camera_points = np.array(self.camera_points, dtype=np.float32)
+        real_points = np.array(self.real_points, dtype=np.float32)
+
+        # Calculate the perspective transformation
+        self.transformation_matrix, _ = cv2.findHomography(camera_points, real_points)
+
+    def transform_coordinates(self, point):
+        # Add a homogeneous coordinate
+        homogeneous_point = np.array([point[0], point[1], 1], dtype=np.float32)
+
+        # Apply perspective transformation
+        transformed_point = np.dot(self.transformation_matrix, homogeneous_point)
+
+        # Normalize the homogeneous coordinate
+        normalized_point = transformed_point / transformed_point[2]
+
+        return normalized_point[:2]
+
+
 def select_image():
     root = tk.Tk()
     root.withdraw()  # Verstecke das Hauptfenster
@@ -246,19 +278,25 @@ def genBinary(binary_out, centers, contours, bounding_boxes, visualize=False):
 
 
 def main():
-    TCP_docker_path = '../Datasets/REC_TCP_Image'
+    # Path were the images triggers the detection
+    TCP_docker_path = '../Unreal Engine/Saved/Screenshots/Windows'
     print('[INFO] Generate segmentation model to detect object on the Conveyor belt')
     v7mod = SegModelObjectDetect()
     print('[INFO] Load Model From Path')
     model = v7mod.loadModel(str(modules_path)+'/'+'runs/train-seg/Final2/weights/best.pt')
     print('[INFO] Load Model done')
+
+    print('[INFO] Generate Perspective Transform Matrix')
+    transformMatrix = PerspectiveTransformMatrix()
+    transformMatrix.create_perspective_transformation_matrix()
+
     #image_path = rTCP.rec_img_by_TCP(port=12346)
     #image_path = select_image()
     #data = v7mod.loadData('../Datasets/camRender.png')
 
     flag = False
 
-    try :
+    try:
 
         while True:
             files = os.listdir(TCP_docker_path)
@@ -279,6 +317,7 @@ def main():
 
                     for path, im, im0s, vid_cap, s in data:
                         original = im0s
+
                         pred, proto, im = v7mod.predict(model=model, im=im, dt=dt)
 
                         for i, det in enumerate(pred):  # per image
@@ -329,6 +368,12 @@ def main():
                             # Extract Features of rectangles
                             centers = [rec[0] for rec in rectangles]
 
+                            # Transform the Coordinates from pixel values to the values of the Unreal Engine Model
+                            real_centers = []
+                            for center in centers:
+                                real_centers.append(transformMatrix.transform_coordinates(center))
+                            real_centers = [tuple(arr) for arr in real_centers]
+
                             # sizes = [rec[1] for rec in rectangles]
                             angles = [rec[2] for rec in rectangles]
 
@@ -336,7 +381,7 @@ def main():
                                 # binary_out = cv2.cvtColor(binary_borders_scaled[:, :, 0], cv2.COLOR_GRAY2BGR)
                                 # genBinary(binary_out, centers=centers, contours=contours, bounding_boxes=bounding_boxes)
                                 generateOutput(original, centers, angles, contours, bounding_boxes, visualize=True)
-                                sendTCPmessage(centers, angles, 1, z=25, host_ip='127.0.0.1', port=12346)
+                                sendTCPmessage(real_centers, angles, 1, z=25, host_ip='127.0.0.1', port=12346)
                             except:
                                 pass
 
