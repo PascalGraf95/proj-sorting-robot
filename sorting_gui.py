@@ -121,12 +121,42 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
         self.update_status_text("Status: Ready")
 
     def standby_dobot(self):
-        self.update_status_text("Status: Approaching Standby Position")
+        self.step_y(positive_direction=True)
+        ''' self.update_status_text("Status: Approaching Standby Position")
         if self._robot:
             self._robot.release_item()
             self._robot.approach_standby_position()
         self.update_status_text("Status: Ready")
+        '''
+    def step_x(self, positive_direction):
+        current_pose = self._robot.get_pose()
+        target = current_pose
+        if positive_direction:
+            target[0] = target[0] + 1
+        else:
+            target[0] = target[0] - 1
+        # Do the step
+        self._robot.approach(target)
 
+    def step_y(self, positive_direction):
+        current_pose = self._robot.get_pose()
+        target = current_pose
+        if positive_direction:
+            target[1] = target[1] + 1
+        else:
+            target[1] = target[1] - 1
+        # Do the step
+        self._robot.approach(target)
+
+    def step_z(self, positive_direction):
+        current_pose = self._robot.get_pose()
+        target = current_pose
+        if positive_direction:
+            target[2] = target[2] + 1
+        else:
+            target[2] = target[2] - 1
+        # Do the step
+        self._robot.approach(target)
 
     def connect_camera(self):
         self.update_status_text("Status: Connecting to Camera")

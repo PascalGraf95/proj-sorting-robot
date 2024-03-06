@@ -10,7 +10,7 @@ modules/Datacollection/conveyor.mp4
 .idea/vcs.xml
 
 evaluate/
-.idea
+.idea/*
 
 # Testing Ignores
 /Testing/*
@@ -33,3 +33,4 @@ evaluate/
 !/modules/NeuronalNetworks/Environments
 !/modules/NeuronalNetworks/README.md
 /Unreal Engine/
+
