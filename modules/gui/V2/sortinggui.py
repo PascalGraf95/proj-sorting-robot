@@ -1,4 +1,9 @@
 # This Python file uses the following encoding: utf-8
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
 from PySide6 import QtGui
 from PySide6 import QtCore
 from PySide6.QtWidgets import QApplication, QWidget
@@ -11,7 +16,17 @@ from modules.data_handling import *
 import time
 from modules.image_processing import *
 from ui_form import Ui_sortingGui
-#from modules.detectObjectsSeg1 import SegModelObjectDetect
+
+modules_path = Path('E:/Studierendenprojekte/proj-camera-controller_/modules/NeuronalNetworks/yolov7-segmentation').resolve()
+sys.path.append(str(modules_path))
+
+from models.common import DetectMultiBackend
+from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
+from utils.general import (LOGGER, Profile, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
+                           increment_path, non_max_suppression,scale_segments, print_args, scale_coords, strip_optimizer, xyxy2xywh)
+from utils.segment.general import process_mask, scale_masks, masks2segments
+from utils.torch_utils import select_device, smart_inference_mode
+from torchvision.transforms import functional as F
 
 class sortingGui(QWidget, Ui_sortingGui):
     def __init__(self, *args, **kwargs):
@@ -30,8 +45,9 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.image_features = None
         self.labels = None
 
-        # Initalize Objectdetection
-        #self.v7mod = SegModelObjectDetect()
+        # Initialisation of the  Objectdetection
+        self.v7mod = SegModelObjectDetect()
+        self.model = self.v7mod.loadModel(str(modules_path)+'/'+'runs/train-seg/Final2/weights/best.pt')
 
         # Initial Conditions radio buttons
         self.ui.radio_yoloV7.setChecked(True)
@@ -109,8 +125,7 @@ class sortingGui(QWidget, Ui_sortingGui):
 
     def data_collection_step(self):
         image = self._camera.capture_image()
-
-        if self.ui.radio_classic:
+        if self.ui.radio_classic.isChecked():
             preprocessed_image = image_preprocessing(image)
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
                                                                                                     smaller_image_area=True)
@@ -119,8 +134,9 @@ class sortingGui(QWidget, Ui_sortingGui):
             self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
             self.update_cluster_example_image()
 
-        elif self.ui.radio_yoloV7:
-            print("Yolo detection")
+        elif self.ui.radio_yoloV7.isChecked():
+            pass
+
         else:
             print("[ERROR] No viable detection mode selected")
 
@@ -137,7 +153,6 @@ class sortingGui(QWidget, Ui_sortingGui):
             pass
         else:
             print("[ERROR] No viable detection mode selected")
-
 
     def load_and_select_data(self):
         self.update_status_text("Status: Loading Data and Selecting Features")
@@ -461,6 +476,98 @@ class sortingGui(QWidget, Ui_sortingGui):
             self.connect_seperator()
         except:
             pass
+
+
+class SegModelObjectDetect:
+    # ToDo: Check if model is available
+    def __init__(self):
+        # ModelData
+        self.model = None
+        self.device = ''
+        self.pt = None
+        self.stride = None
+        self.names = None
+        self.augment = False  # augmented inference
+        self.visualize = False
+        self.agnostic_nms = False
+        self.data = 'data/coco128.yaml'  # dataset.yaml path
+        self.imgsz = (640, 640)
+        self.classes = 1
+        self.conf_thres = 0.9  # confidence threshold
+        self.iou_thres = 0.2  # NMS IOU threshold
+        self.max_det = 1000
+
+    def loadModel(self, path):
+        self.device = select_device(self.device)
+        self.model = DetectMultiBackend(path, device=self.device, dnn=False, data=self.data, fp16=False)
+        self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
+        self.imgsz = check_img_size(self.imgsz, s=self.stride)  # check image size
+        return self.model
+
+    def loadData(self, source):
+        dataset = LoadImages(source, img_size=self.imgsz, stride=self.stride, auto=self.pt)
+        bs = 1  # batch_size
+
+        # Run inference
+        self.model.warmup(imgsz=(1 if self.pt else bs, 3, *self.imgsz))  # warmup
+        return dataset
+
+    def predict(self, model, im, dt):
+        with dt[0]:
+            im = torch.from_numpy(im).to(self.device)
+            im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
+            im /= 255  # 0 - 255 to 0.0 - 1.0
+            if len(im.shape) == 3:
+                im = im[None]  # expand for batch dim
+
+        # Inference
+        with dt[1]:
+            pred, out = model(im, augment=self.augment, visualize=self.visualize)
+            proto = out[1]
+
+        # NMS
+        with dt[2]:
+            pred = non_max_suppression(pred, 0.2, self.iou_thres, self.classes, self.agnostic_nms, max_det=self.max_det, nm=32)
+
+        return pred, proto, im
+
+    def get_object_coordinates_from_mask(self, masks):
+        """
+        Args:
+            masks (tensor): predicted masks on cuda, shape: [n, h, w]
+        Returns:
+            ndarray: array with 0 for no object, 1 for object
+        """
+        num_masks = len(masks)
+        if num_masks == 0:
+            return np.zeros_like(masks[0].cpu().numpy())
+
+        # Summiere alle Masken auf, um zu überprüfen, ob an den Koordinaten ein Objekt erkannt wurde
+        combined_mask = np.sum(masks.cpu().numpy(), axis=0)
+
+        # Erstelle ein binäres Image-Array: 0 für keine Objekte, 1 für erkannte Objekte
+        object_coordinates = np.where(combined_mask > 0, 1, 0)
+
+        return object_coordinates
+
+    def gen_image(self, object_coordinates, showImage=False):
+        """
+        Args:
+            binary_image: Binary Image of Objects
+            showImage(boolean) to show or don't show the generated Image
+        Returns:
+            binary_image_bgr: converted 3 channel binary image
+
+        """
+
+        binary_image_bgr = cv2.cvtColor(np.array(object_coordinates, dtype=np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+
+        if showImage:
+            cv2.imshow('Binary Image', binary_image_bgr)
+            cv2.waitKey(0)
+            cv2.destroyWindow('Binary Image')
+
+        return binary_image_bgr
 
 def main():
     app = QApplication(sys.argv)
