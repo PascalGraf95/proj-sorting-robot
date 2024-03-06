@@ -1,5 +1,4 @@
 # This Python file uses the following encoding: utf-8
-import sys
 from PySide6 import QtGui
 from PySide6 import QtCore
 from PySide6.QtWidgets import QApplication, QWidget
@@ -12,6 +11,7 @@ from modules.data_handling import *
 import time
 from modules.image_processing import *
 from ui_form import Ui_sortingGui
+#from modules.detectObjectsSeg1 import SegModelObjectDetect
 
 class sortingGui(QWidget, Ui_sortingGui):
     def __init__(self, *args, **kwargs):
@@ -30,9 +30,17 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.image_features = None
         self.labels = None
 
+        # Initalize Objectdetection
+        #self.v7mod = SegModelObjectDetect()
+
         # Initial Conditions radio buttons
         self.ui.radio_yoloV7.setChecked(True)
         self.ui.radio_2d.setChecked(True)
+
+        # [0]: Manual Feature Selection
+        # [1]: Autoencoder
+        # [2]: Transformer
+        self.ui.SortingType.setCurrentIndex(2)
 
         # Initial Color Palette
         self._blue_palette = QtGui.QPalette()
@@ -47,6 +55,7 @@ class sortingGui(QWidget, Ui_sortingGui):
         # Set Initial Label States
         self.update_connection_states()
         self.update_status_text("Status: Ready")
+
 
         self.data_collection_active = False
         self.sorting_active = False
@@ -86,6 +95,8 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.pca_cluster_timer = QtCore.QTimer()
         self.pca_cluster_timer.timeout.connect(self.update_pca_cluster_image)
 
+        self.update_selection_visibility()
+
     def activate_data_collection_phase(self):
         if self._camera and self._conveyor_belt:
             self.data_collection_active = True
@@ -98,18 +109,35 @@ class sortingGui(QWidget, Ui_sortingGui):
 
     def data_collection_step(self):
         image = self._camera.capture_image()
-        preprocessed_image = image_preprocessing(image)
-        contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
-                                                                                                smaller_image_area=True)
-        _, standardized_images = extract_features(contours, rectangles, object_images, store_features=True)
-        self.cluster_example_images = show_live_collected_images(standardized_images, plot=False)
-        self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
-        self.update_cluster_example_image()
+
+        if self.ui.radio_classic:
+            preprocessed_image = image_preprocessing(image)
+            contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
+                                                                                                    smaller_image_area=True)
+            _, standardized_images = extract_features(contours, rectangles, object_images, store_features=True)
+            self.cluster_example_images = show_live_collected_images(standardized_images, plot=False)
+            self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+            self.update_cluster_example_image()
+
+        elif self.ui.radio_yoloV7:
+            print("Yolo detection")
+        else:
+            print("[ERROR] No viable detection mode selected")
 
     def load_and_cluster_data(self):
         self.cluster_example_images = None
-        self.load_and_select_data()
-        self.cluster_data()
+        if self.ui.SortingType == "Manually Select Data":
+            self.load_and_select_data()
+            self.cluster_data()
+        elif self.ui.SortingType == "Autoencoder":
+            # ToDo: Insert Clustering here
+            pass
+        elif self.ui.SortingType == "Transformer":
+            # ToDo: Insert Transformer Clustering here
+            pass
+        else:
+            print("[ERROR] No viable detection mode selected")
+
 
     def load_and_select_data(self):
         self.update_status_text("Status: Loading Data and Selecting Features")
@@ -170,6 +198,7 @@ class sortingGui(QWidget, Ui_sortingGui):
             self.sorting_timer.start(50)
 
     def sorting_step(self):
+        # ToDo: Insert YoloV7 detection here
         image = self._camera.capture_image()
         # Preprocess image and extract objects
         preprocessed_image = image_preprocessing(image)
@@ -254,6 +283,7 @@ class sortingGui(QWidget, Ui_sortingGui):
             self.ui.check_feature_solidity.setVisible(True)
 
             self.ui.combo_clustering_method.setVisible(True)
+            self.ui.Button_Start_User_Feedback.setVisible(False)
         else:
             self.ui.check_feature_area.setVisible(False)
             self.ui.check_feature_color.setVisible(False)
@@ -264,8 +294,10 @@ class sortingGui(QWidget, Ui_sortingGui):
             self.ui.check_feature_solidity.setVisible(False)
             if self.ui.SortingType.currentText() == "Autoencoder":
                 self.ui.combo_clustering_method.setVisible(True)
+                self.ui.Button_Start_User_Feedback.setVisible(False)
             else:
                 self.ui.combo_clustering_method.setVisible(False)
+                self.ui.Button_Start_User_Feedback.setVisible(True)
 
     def connect_dobot(self):
         self.update_status_text("Status: Connecting to Dobot")

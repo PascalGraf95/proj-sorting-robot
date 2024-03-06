@@ -29,6 +29,7 @@ evaluate/
 /modules/NeuronalNetworks/*
 # Dataset exeptions
 !/modules/NeuronalNetworks/Autoencoder
+!/modules/NeuronalNetworks/V7Seg
 !/modules/NeuronalNetworks/Pretrained
 !/modules/NeuronalNetworks/Environments
 !/modules/NeuronalNetworks/README.md

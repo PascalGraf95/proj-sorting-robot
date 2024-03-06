@@ -106,7 +106,7 @@ class Ui_sortingGui(object):
         self.buttonGroup.addButton(self.radio_classic)
         self.radio_classic.setObjectName(u"radio_classic")
 
-        self.horizontalLayout_3.addWidget(self.radio_classic)
+        self.horizontalLayout_3.addWidget(self.radio_classic, 0, Qt.AlignHCenter)
 
         self.radio_yoloV7 = QRadioButton(self.verticalLayoutWidget_3)
         self.buttonGroup.addButton(self.radio_yoloV7)
@@ -184,6 +184,25 @@ class Ui_sortingGui(object):
         self.label_status_seperator.setAlignment(Qt.AlignCenter)
 
         self.gridLayout.addWidget(self.label_status_seperator, 4, 1, 1, 1, Qt.AlignRight)
+
+        self.horizontalLayout_5 = QHBoxLayout()
+        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
+        self.label_contour_method = QLabel(self.verticalLayoutWidget_3)
+        self.label_contour_method.setObjectName(u"label_contour_method")
+        self.label_contour_method.setEnabled(True)
+        self.label_contour_method.setFont(font)
+        self.label_contour_method.setTextFormat(Qt.AutoText)
+        self.label_contour_method.setAlignment(Qt.AlignCenter)
+
+        self.horizontalLayout_5.addWidget(self.label_contour_method, 0, Qt.AlignLeft)
+
+        self.radio_contour_cut = QRadioButton(self.verticalLayoutWidget_3)
+        self.radio_contour_cut.setObjectName(u"radio_contour_cut")
+
+        self.horizontalLayout_5.addWidget(self.radio_contour_cut, 0, Qt.AlignLeft)
+
+
+        self.gridLayout.addLayout(self.horizontalLayout_5, 2, 0, 1, 1)
 
 
         self.verticalLayout.addLayout(self.gridLayout)
@@ -455,6 +474,8 @@ class Ui_sortingGui(object):
         self.label_conveyor_connection.setText("")
         self.label_status_conveyor.setText(QCoreApplication.translate("sortingGui", u"Conveyor Belt:", None))
         self.label_status_seperator.setText(QCoreApplication.translate("sortingGui", u"Seperator:", None))
+        self.label_contour_method.setText(QCoreApplication.translate("sortingGui", u"Cut Contour", None))
+        self.radio_contour_cut.setText(QCoreApplication.translate("sortingGui", u"True", None))
         self.label_phases.setText(QCoreApplication.translate("sortingGui", u"Phases", None))
         self.label_sorting.setText("")
         self.button_data_collection.setText(QCoreApplication.translate("sortingGui", u"Data Collection Phase", None))
