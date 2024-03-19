@@ -75,16 +75,46 @@ class WebcamCameraController:
         self.vid.release()
 
 
+# Mouse callback function to update cursor position
+def mouse_callback(event, x, y, flags, param):
+    global cursor_x, cursor_y
+    if event == cv2.EVENT_MOUSEMOVE:
+        cursor_x, cursor_y = x, y
+
+
 def main():
+    # Initialize the camera
     cam = IDSCameraController()
+    '''
+    import image_processing
+    # Global variables to store cursor position
+    global cursor_x, cursor_y
+    cursor_x, cursor_y = -1, -1
+
+    # Connect to the camera and capture images
     for i in range(10000):
         frame = cam.capture_image()
+        frame = image_processing.image_preprocessing(frame)
 
+        # Add the cursor coordinates to the image
+        cursor_position = f"({cursor_x}, {cursor_y})"
+        cv2.putText(frame, cursor_position, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+        # Show the image
         cv2.imshow("Test", frame)
-        cv2.waitKey(1)
+        cv2.setMouseCallback("Test", mouse_callback)
 
+        # Check for key press to exit
+        key = cv2.waitKey(1)
+        if key == 27:  # Press 'Esc' to exit
+            break
+    '''
+    # Close the camera connection and destroy all windows
     cam.close_camera_connection()
     cv2.destroyAllWindows()
+
+
+
 
 
 if __name__ == '__main__':

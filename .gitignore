@@ -35,3 +35,4 @@ evaluate/
 !/modules/NeuronalNetworks/README.md
 /Unreal Engine/
 
+/SemiSupervisedSortingCurrent/*

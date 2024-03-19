@@ -204,12 +204,12 @@ def store_images_and_image_features(image_list, hu_moments_list):
     global date_str
     if not len(date_str):
         date_str = datetime.now().strftime("%y%m%d_%H%M%S")
-    dir_path = os.path.join(r"stored_images", date_str + "_images")
+    dir_path = os.path.join(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images", date_str + "_images\images")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
     files_in_dir = len(os.listdir(dir_path))
-    with open(os.path.join(r"stored_images", date_str + "_image_features.csv"), 'a', newline='') as file:
+    with open(os.path.join(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images", date_str + "_image_features.csv"), 'a', newline='') as file:
         writer = csv.writer(file)
         for image, hu_moments in zip(image_list, hu_moments_list):
             file_name = "image_{:05d}.png".format(files_in_dir)
@@ -429,6 +429,9 @@ def extract_features(contours, rectangles, object_images, store_features=True):
         feature_list = get_image_features(object_images, contours, rectangles)
         if store_features:
             standardized_images = standardize_and_store_images_and_features(object_images, feature_list)
+        else:
+            standardized_images = standardize_images(object_images)
+
     return feature_list, standardized_images
 
 
@@ -444,6 +447,14 @@ def get_object_angles(rectangles):
 
 def main():
     image = cv2.imread(r"../Testing/YoloObjektDetection/Images/Dataset/Srews_Nuts_Washers/1.jpg")
+    image2 = cv2.imread(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images\temp\yoloImage.png")
+
+    contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(image2)
+
+    object_dictionary = get_object_angles(rectangles=rectangles)
+    print(object_dictionary)
+
+    '''
     show_image(image)
 
     patch = get_image_patch(image, (610, 610), (40, 40))
@@ -454,9 +465,11 @@ def main():
     correction_factors = get_white_balance_parameters(mean_vals)
 
     corrected_image = correct_image_white_balance(image, correction_factors)
+
+
     show_image(image)
     show_image(corrected_image)
-
+    '''
 
 if __name__ == '__main__':
     main()
