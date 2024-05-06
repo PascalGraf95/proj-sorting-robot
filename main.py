@@ -164,6 +164,9 @@ def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clusteri
 
 def calibrate_robot():
     robot = DoBotRobotController()
+    robot.execute_homing()
+    robot.release_item()
+    robot.approach_standby_position()
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
@@ -173,9 +176,9 @@ def calibrate_robot():
 
 
 def main():
-    # calibrate_robot()
+    calibrate_robot()
     calc_transformation_matrices()
-    # robot = DoBotRobotController()
+    robot = DoBotRobotController()
     conveyor_belt = ConveyorBelt()
     seperator = Seperator()
     cam = IDSCameraController()

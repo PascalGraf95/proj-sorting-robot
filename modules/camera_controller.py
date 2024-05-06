@@ -85,7 +85,7 @@ def mouse_callback(event, x, y, flags, param):
 def main():
     # Initialize the camera
     cam = IDSCameraController()
-    '''
+
     import image_processing
     # Global variables to store cursor position
     global cursor_x, cursor_y
@@ -108,13 +108,10 @@ def main():
         key = cv2.waitKey(1)
         if key == 27:  # Press 'Esc' to exit
             break
-    '''
+
     # Close the camera connection and destroy all windows
     cam.close_camera_connection()
     cv2.destroyAllWindows()
-
-
-
 
 
 if __name__ == '__main__':
