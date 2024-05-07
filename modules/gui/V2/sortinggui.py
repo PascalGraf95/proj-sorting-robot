@@ -339,14 +339,15 @@ class sortingGui(QWidget, Ui_sortingGui):
         preprocessed_image = image_preprocessing(image)
 
         if self.ui.radio_classic.isChecked():
-            self.conventional_sorting_step(preprocessed_image)
+            contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
+            _, standardized_images = extract_features(contours, rectangles, object_images, store_features=False)
         elif self.ui.radio_yoloV7.isChecked():
-            self.yolo_sorting_step(preprocessed_image)
+            standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
+                preprocessed_image, False)
         else:
             print("[ERROR] No viable detection mode selected")
+            return
 
-    def conventional_sorting_step(self, preprocessed_image):
-        contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
         # Filter object by maximum diameter (no objects to wide to grab), then get center position and angle
         object_dictionary = get_object_angles(rectangles)
         # Stop the conveyor if an object is inside picking range and if the robot is ready to pick it up.
@@ -368,15 +369,8 @@ class sortingGui(QWidget, Ui_sortingGui):
                 # Choose the storage number, start the synchronous or asynchronous deposit process.
                 n_storage = np.random.randint(0, 10)
             else:
-                image_features, _ = extract_features(contours, rectangles, object_images, store_features=False)
-                image_features = select_features(image_features, feature_type=self.feature_type_string)
-                image_features = preprocess_features(image_features, preprocessing=self._feature_preprocessing)
-                if self._dim_reduction_algorithm:
-                    image_features = self._dim_reduction_algorithm.predict(image_features)
-                n_storage = self._clustering_algorithm.predict(image_features)[index]
-
+                n_storage = predict_single_image_cluster(standardized_images[index])
                 # ToDo: Insert Colored Contour for next picked item
-                # preprocessed_image = cv2.drawContours(preprocessed_image, bounding_boxes[index], -1, (255, 0, 0), 3)
 
             self.ui.combo_cluster.setCurrentIndex(n_storage)
             # Transform its position into the robot coordinate system.
@@ -388,45 +382,10 @@ class sortingGui(QWidget, Ui_sortingGui):
 
         self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
         self._robot.async_deposit_process()
-
-    def yolo_sorting_step(self, preprocessed_image):
-        standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
-            preprocessed_image, False)
-
-        object_dictionary = get_object_angles(rectangles)
-
-        if check_conveyor_force_stop_condition(object_dictionary) or \
-                check_conveyor_soft_stop_condition(object_dictionary, self._robot):
-            self._seperator.stop()
-            self._conveyor_belt.stop()
-        else:
-            if not self._conveyor_belt.is_running():
-                self._conveyor_belt.start()
-                self._seperator.forward()
-
-        if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
-            print(f'[INFO] {len(contours)} viable Objects found')
-            # Get the first object which is the one furthest to the left on the conveyor.
-            position, angle, index = get_next_object_to_grab(object_dictionary)
-            _, standardized_images = extract_features(contours, rectangles, object_images,
-                                                      store_features=False)
-            if standardized_images is not None:
-                n_storage = predict_single_image_cluster(standardized_images[index])
-            else:
-                print("No Prediction made")
-                n_storage = np.random.randint(0, 10)
-
-            #self.combo_cluster.setCurrentIndex(n_storage)
-            # Transform its position into the robot coordinate system.
-            position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
-            # Approach its position and pick it up.
-            self._robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
-            self._robot.pick_item()
-            self._robot.async_deposit_process(start_process=True, n_storage=n_storage)
-
-        self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
-        self._robot.async_deposit_process()
         self.update_cluster_example_image()
+
+    def conventional_sorting_step(self, preprocessed_image):
+        contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
 
     def stop_active_process(self):
         if self._conveyor_belt:
