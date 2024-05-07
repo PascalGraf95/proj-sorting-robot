@@ -74,7 +74,6 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.update_connection_states()
         self.update_status_text("Status: Ready")
 
-
         self.data_collection_active = False
         self.sorting_active = False
         self.initial_classification = False
@@ -139,75 +138,77 @@ class sortingGui(QWidget, Ui_sortingGui):
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
                                                                                                     smaller_image_area=True)
             _, standardized_images = extract_features(contours, rectangles, object_images, store_features=store_features)
-
         elif self.ui.radio_yoloV7.isChecked():
             preprocessed_image = image_preprocessing(image)
-            temp_image_path = "E:\\Studierendenprojekte\\proj-camera-controller_\\stored_images\\temp\\yoloImage.png"
-            cv2.imwrite(temp_image_path, preprocessed_image)
-            data = self.v7mod.loadData(temp_image_path)
-            dt = (Profile(), Profile(), Profile())
-
-            for path, im, im0s, vid_cap, s in data:
-                original = im0s
-
-                pred, proto, im = self.v7mod.predict(model=self.model, im=im, dt=dt)
-
-                for i, det in enumerate(pred):  # per image
-                    print(f'[INFO] Detected {len(det)} Objects')
-
-                    contours = []
-                    p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
-
-                    if len(det):
-                        masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
-
-                        # Rescale boxes from img_size to im0 size
-                        det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
-
-                        object_coordinates = self.v7mod.get_object_coordinates_from_mask(masks)
-                        binary_borders = self.v7mod.gen_image(object_coordinates, showImage=False)
-                        binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
-
-                        # Detect the contours in the Threshold Mask
-                        raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
-                                                                   mode=cv2.RETR_TREE,
-                                                                   method=cv2.CHAIN_APPROX_NONE)
-
-                        # Filter contours by size
-                        for c in raw_contours:
-                            x, y, w, h = cv2.boundingRect(c)
-                            x_lim = 200
-                            y_lim = 50
-                            if x > x_lim and y > y_lim and x + w < original.shape[1] - x_lim and y + h < original.shape[
-                                0] - y_lim:
-                                if 200 < c.size < 1000:
-                                    contours.append(c)
-
-                        print(f'[INFO] {len(contours)} viable Objects found')
-
-                    # Generate Image with just the Objects
-                    if len(contours) >= 0:
-                        contour_img = np.zeros_like(original)
-                        for c in contours:
-                            cv2.drawContours(contour_img, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
-
-                        if self.ui.radio_contour_cut.isChecked():
-                            JustObjects = cv2.bitwise_and(original, contour_img)
-                            rectangles = ip.get_rects_from_contours(contours)
-                            bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                            object_images = ip.warp_objects_horizontal(JustObjects, rectangles, bounding_boxes)
-                        else:
-                            rectangles = ip.get_rects_from_contours(contours)
-                            bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                            object_images = ip.warp_objects_horizontal(original, rectangles, bounding_boxes)
-
-                        _, standardized_images = extract_features(contours, rectangles, object_images,
-                                                                  store_features=store_features)
-
+            standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
+                preprocessed_image, store_features)
         else:
             print("[ERROR] No viable detection mode selected")
-
         return standardized_images, contours, rectangles, bounding_boxes, object_images
+
+    def detect_objects_yolo(self, preprocessed_image, store_features=False):
+        temp_image_path = "E:\\Studierendenprojekte\\proj-camera-controller_\\stored_images\\temp\\yoloImage.png"
+        cv2.imwrite(temp_image_path, preprocessed_image)
+        data = self.v7mod.loadData(temp_image_path)
+        dt = (Profile(), Profile(), Profile())
+
+        for path, im, im0s, vid_cap, s in data:
+            original = im0s
+
+            pred, proto, im = self.v7mod.predict(model=self.model, im=im, dt=dt)
+
+            for i, det in enumerate(pred):  # per image
+                print(f'[INFO] Detected {len(det)} Objects')
+
+                contours = []
+                p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
+
+                if len(det):
+                    masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
+
+                    # Rescale boxes from img_size to im0 size
+                    det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
+
+                    object_coordinates = self.v7mod.get_object_coordinates_from_mask(masks)
+                    binary_borders = self.v7mod.gen_image(object_coordinates, showImage=False)
+                    binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
+
+                    # Detect the contours in the Threshold Mask
+                    raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
+                                                               mode=cv2.RETR_TREE,
+                                                               method=cv2.CHAIN_APPROX_NONE)
+
+                    # Filter contours by size
+                    for c in raw_contours:
+                        x, y, w, h = cv2.boundingRect(c)
+                        x_lim = 200
+                        y_lim = 50
+                        if x > x_lim and y > y_lim and x + w < original.shape[1] - x_lim and y + h < original.shape[
+                            0] - y_lim:
+                            if 200 < c.size < 1000:
+                                contours.append(c)
+
+                    print(f'[INFO] {len(contours)} viable Objects found')
+
+                # Generate Image with just the Objects
+                if len(contours) >= 0:
+                    contour_img = np.zeros_like(original)
+                    cv2.drawContours(contour_img, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
+
+                    if self.ui.radio_contour_cut.isChecked():
+                        binary_objects_image = cv2.bitwise_and(original, contour_img)
+                        rectangles = ip.get_rects_from_contours(contours)
+                        bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
+                        object_images = ip.warp_objects_horizontal(binary_objects_image, rectangles, bounding_boxes)
+                    else:
+                        rectangles = ip.get_rects_from_contours(contours)
+                        bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
+                        object_images = ip.warp_objects_horizontal(original, rectangles, bounding_boxes)
+
+                    _, standardized_images = extract_features(contours, rectangles, object_images,
+                                                              store_features=store_features)
+                    return standardized_images, contours, rectangles, bounding_boxes, object_images
+                return None, [], [], [], None
 
     def data_collection_step(self):
         image = self._camera.capture_image()
@@ -216,81 +217,26 @@ class sortingGui(QWidget, Ui_sortingGui):
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
                                                                                                     smaller_image_area=True)
             _, standardized_images = extract_features(contours, rectangles, object_images, store_features=True)
-            self.cluster_example_images = show_live_collected_images(standardized_images, plot=False)
-            self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
-            self.update_cluster_example_image()
 
         elif self.ui.radio_yoloV7.isChecked():
             preprocessed_image = image_preprocessing(image)
-            temp_image_path = "E:\\Studierendenprojekte\\proj-camera-controller_\\stored_images\\temp\\yoloImage.png"
-            cv2.imwrite(temp_image_path, preprocessed_image)
-            data = self.v7mod.loadData(temp_image_path)
-            dt = (Profile(), Profile(), Profile())
-            for path, im, im0s, vid_cap, s in data:
-                original = im0s
+            standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
+                preprocessed_image, True)
 
-                pred, proto, im = self.v7mod.predict(model=self.model, im=im, dt=dt)
+            print(f"lenght contours{len(contours)}")
+            print(f"lenght rectangles{len(rectangles)}")
+            print(f"lenght object_images{len(object_images)}")
+            # _, standardized_images = extract_features(contours, rectangles, object_images,
+            #                                           store_features=True)
 
-                for i, det in enumerate(pred):  # per image
-                    print(f'[INFO] Detected {len(det)} Objects')
-
-                    contours = []
-                    p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
-
-                    if len(det):
-                        masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
-
-                        # Rescale boxes from img_size to im0 size
-                        det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
-
-                        object_coordinates = self.v7mod.get_object_coordinates_from_mask(masks)
-                        binary_borders = self.v7mod.gen_image(object_coordinates, showImage=False)
-                        binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
-
-                        # Detect the contours in the Threshold Mask
-                        raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
-                                                                   mode=cv2.RETR_TREE,
-                                                                   method=cv2.CHAIN_APPROX_NONE)
-
-                        # Filter contours by size
-                        for c in raw_contours:
-                            x, y, w, h = cv2.boundingRect(c)
-                            x_lim = 200
-                            y_lim = 50
-                            if x > x_lim and y > y_lim and x + w < original.shape[1] - x_lim and y + h < original.shape[
-                                0] - y_lim:
-                                if 200 < c.size < 1500:
-                                    contours.append(c)
-
-                        print(f'[INFO] {len(contours)} viable Objects found')
-
-                    # Generate Image with just the Objects
-                    if len(contours) >= 0:
-                        contour_img = np.zeros_like(original)
-                        for c in contours:
-                            cv2.drawContours(contour_img, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
-
-                        if self.ui.radio_contour_cut.isChecked():
-                            JustObjects = cv2.bitwise_and(original, contour_img)
-                            rectangles = ip.get_rects_from_contours(contours)
-                            bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                            object_images = ip.warp_objects_horizontal(JustObjects, rectangles, bounding_boxes)
-                        else:
-                            rectangles = ip.get_rects_from_contours(contours)
-                            bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                            object_images = ip.warp_objects_horizontal(original, rectangles, bounding_boxes)
-
-                        print(f"lenght contours{len(contours)}")
-                        print(f"lenght rectangles{len(rectangles)}")
-                        print(f"lenght object_images{len(object_images)}")
-                        _, standardized_images = extract_features(contours, rectangles, object_images,
-                                                                  store_features=True)
-                        self.cluster_example_images = show_live_collected_images(standardized_images, plot=False)
-                        self.live_conveyor_image = cv2.drawContours(contour_img, bounding_boxes, -1, (0, 0, 255),
-                                                                    2)
-                        self.update_cluster_example_image()
         else:
             print("[ERROR] No viable detection mode selected")
+            return
+
+        self.cluster_example_images = show_live_collected_images(standardized_images, plot=False)
+        self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255),
+                                                    2)
+        self.update_cluster_example_image()
 
     def load_and_cluster_data(self):
         self.cluster_example_images = None
@@ -444,93 +390,43 @@ class sortingGui(QWidget, Ui_sortingGui):
         self._robot.async_deposit_process()
 
     def yolo_sorting_step(self, preprocessed_image):
-        temp_image_path = "E:\\Studierendenprojekte\\proj-camera-controller_\\stored_images\\temp\\yoloImage.png"
-        cv2.imwrite(temp_image_path, preprocessed_image)
-        data = self.v7mod.loadData(temp_image_path)
-        dt = (Profile(), Profile(), Profile())
-        for path, im, im0s, vid_cap, s in data:
-            original = im0s
+        standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
+            preprocessed_image, False)
 
-            pred, proto, im = self.v7mod.predict(model=self.model, im=im, dt=dt)
+        object_dictionary = get_object_angles(rectangles)
 
-            for i, det in enumerate(pred):  # per image
-                contours = []
-                p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
+        if check_conveyor_force_stop_condition(object_dictionary) or \
+                check_conveyor_soft_stop_condition(object_dictionary, self._robot):
+            self._seperator.stop()
+            self._conveyor_belt.stop()
+        else:
+            if not self._conveyor_belt.is_running():
+                self._conveyor_belt.start()
+                self._seperator.forward()
 
-                if len(det):
-                    masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
+        if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
+            print(f'[INFO] {len(contours)} viable Objects found')
+            # Get the first object which is the one furthest to the left on the conveyor.
+            position, angle, index = get_next_object_to_grab(object_dictionary)
+            _, standardized_images = extract_features(contours, rectangles, object_images,
+                                                      store_features=False)
+            if standardized_images is not None:
+                n_storage = predict_single_image_cluster(standardized_images[index])
+            else:
+                print("No Prediction made")
+                n_storage = np.random.randint(0, 10)
 
-                    # Rescale boxes from img_size to im0 size
-                    det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
+            #self.combo_cluster.setCurrentIndex(n_storage)
+            # Transform its position into the robot coordinate system.
+            position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
+            # Approach its position and pick it up.
+            self._robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
+            self._robot.pick_item()
+            self._robot.async_deposit_process(start_process=True, n_storage=n_storage)
 
-                    object_coordinates = self.v7mod.get_object_coordinates_from_mask(masks)
-                    binary_borders = self.v7mod.gen_image(object_coordinates, showImage=False)
-                    binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
-
-                    # Detect the contours in the Threshold Mask
-                    raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
-                                                               mode=cv2.RETR_TREE,
-                                                               method=cv2.CHAIN_APPROX_NONE)
-                    print(f'[INFO] {len(raw_contours)} raw Objects found')
-                    # Filter contours by size
-                    for c in raw_contours:
-                        x, y, w, h = cv2.boundingRect(c)
-                        x_lim = 200
-                        y_lim = 50
-                        if x > x_lim and y > y_lim and x + w < original.shape[1] - x_lim and y + h < original.shape[
-                            0] - y_lim:
-                            if 200 < c.size < 1500:
-                                contours.append(c)
-
-                # Generate Image with just the Objects
-                contour_img = np.zeros_like(original)
-                for c in contours:
-                    cv2.drawContours(contour_img, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
-
-                if self.ui.radio_contour_cut.isChecked():
-                    JustObjects = cv2.bitwise_and(original, contour_img)
-                    rectangles = ip.get_rects_from_contours(contours)
-                    bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                    object_images = ip.warp_objects_horizontal(JustObjects, rectangles, bounding_boxes)
-                else:
-                    rectangles = ip.get_rects_from_contours(contours)
-                    bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                    object_images = ip.warp_objects_horizontal(original, rectangles, bounding_boxes)
-
-                object_dictionary = get_object_angles(rectangles)
-
-                if check_conveyor_force_stop_condition(object_dictionary) or \
-                        check_conveyor_soft_stop_condition(object_dictionary, self._robot):
-                    self._seperator.stop()
-                    self._conveyor_belt.stop()
-                else:
-                    if not self._conveyor_belt.is_running():
-                        self._conveyor_belt.start()
-                        self._seperator.forward()
-
-                if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
-                    print(f'[INFO] {len(contours)} viable Objects found')
-                    # Get the first object which is the one furthest to the left on the conveyor.
-                    position, angle, index = get_next_object_to_grab(object_dictionary)
-                    _, standardized_images = extract_features(contours, rectangles, object_images,
-                                                              store_features=False)
-                    if standardized_images is not None:
-                        n_storage = predict_single_image_cluster(standardized_images[index])
-                    else:
-                        print("No Prediction made")
-                        n_storage = np.random.randint(0, 10)
-
-                    #self.combo_cluster.setCurrentIndex(n_storage)
-                    # Transform its position into the robot coordinate system.
-                    position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
-                    # Approach its position and pick it up.
-                    self._robot.approach_at_maneuvering_height((position_r[0], position_r[1], 0, 0, 0, -angle))
-                    self._robot.pick_item()
-                    self._robot.async_deposit_process(start_process=True, n_storage=n_storage)
-
-                self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
-                self._robot.async_deposit_process()
-                self.update_cluster_example_image()
+        self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
+        self._robot.async_deposit_process()
+        self.update_cluster_example_image()
 
     def stop_active_process(self):
         if self._conveyor_belt:
