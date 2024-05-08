@@ -1,3 +1,5 @@
+import os
+
 from pyueye import ueye
 import numpy as np
 import cv2
@@ -19,7 +21,8 @@ class IDSCameraController:
         ueye.is_InitCamera(self.h_cam, None)
 
         pParam = ueye.wchar_p()
-        pParam.value = r"modules\configs\camera_parameters_230224.ini"
+        parameter_path = os.path.join(os.path.dirname(__file__), "configs", "camera_parameters_230224.ini")
+        pParam.value = parameter_path
         ueye.is_ParameterSet(self.h_cam, ueye.IS_PARAMETERSET_CMD_LOAD_FILE, pParam, 0)
 
         # Set display mode to DIB

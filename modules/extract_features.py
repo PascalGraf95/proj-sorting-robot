@@ -24,31 +24,35 @@ image_processor = AutoImageProcessor.from_pretrained("facebook/dinov2-large")
 model = Dinov2Model.from_pretrained("facebook/dinov2-large").to(device)
 image_feature_vectors = None
 lin_clf = svm.LinearSVC(dual="auto", max_iter=1_000_000_000)
+min_size = 0
+max_size = 1
+use_size = False
+size_scaling = 25
 
+# Size augmentation
+def getSizeEncoding(sizes, d, n=10):
+    E = np.zeros((len(sizes), d))
+    for j, size in enumerate(sizes):
+        for i in np.arange(int(d / 2)):
+            denominator = np.power(n, 2 * i / d)
+            E[j, 2 * i] = np.sin(size / denominator)
+            E[j, 2 * i + 1] = np.cos(size / denominator)
+    return E
 
 def extract_dataset_features(data_path, destination_path):
     global image_feature_vectors
+    global use_size
     data_base_path = data_path
     image_path = 'images'  # '19-classes_Boundingbox_V2/Objects' # 'Vegetable_Images/raw_data'
-    json_path = 'info.json'  # Dataset file with size information
-
-    SIZE_SCALING = 25
-
-    # Size augmentation
-    def getSizeEncoding(sizes, d, n=10):
-        E = np.zeros((len(sizes), d))
-        for j, size in enumerate(sizes):
-            for i in np.arange(int(d / 2)):
-                denominator = np.power(n, 2 * i / d)
-                E[j, 2 * i] = np.sin(size / denominator)
-                E[j, 2 * i + 1] = np.cos(size / denominator)
-        return E
+    json_path = 'sizes.json'  # Dataset file with size information
 
     # Load Data from Path
     use_size = False
     if os.path.exists(os.path.join(data_base_path, json_path)):
         with open(os.path.join(data_base_path, json_path), 'r') as file:
-            size_dict = json.load(file)
+            size_dict = {}
+            for line in file:
+                size_dict.update(json.loads(line))
         use_size = True
 
     sizes = []
@@ -72,8 +76,11 @@ def extract_dataset_features(data_path, destination_path):
     image_feature_vectors = np.array(image_feature_vectors)
 
     if use_size:
+        global min_size, max_size
+        min_size = np.min(sizes)
+        max_size = np.max(sizes)
         normalized_sizes = (np.array(sizes) - np.min(sizes)) / (np.max(sizes) - np.min(sizes))
-        size_augmentation = getSizeEncoding(normalized_sizes * SIZE_SCALING, d=1024, n=SIZE_SCALING)
+        size_augmentation = getSizeEncoding(normalized_sizes * size_scaling, d=1024, n=size_scaling)
         image_feature_vectors = image_feature_vectors + size_augmentation
 
     perplexity = len(paths) ** 0.5  # https://towardsdatascience.com/how-to-tune-hyperparameters-of-tsne-7c0596a18868
@@ -120,21 +127,31 @@ def extract_dataset_features(data_path, destination_path):
     # df = pd.DataFrame(dict)
     # df.to_json(f"./Datasets/{path_Dataset}/{FILE_NAME}.json")
 
-def predict_single_image_cluster(image):
+def predict_single_image_cluster(image, size):
+    global lin_clf, use_size
     # Feature extraction
     inputs = image_processor(image, return_tensors="pt")
     with torch.no_grad():
         outputs = model(**inputs.to(device))
         single_image_feature_vector = outputs.last_hidden_state[:, 0, :].cpu()  # CLS output
-    return lin_clf.predict(np.array(single_image_feature_vector))
+    single_image_feature_vector = np.array(single_image_feature_vector)
+    print(use_size)
+    if use_size:
+        global min_size, max_size
+        normalized_sizes = (size - min_size) / (max_size - min_size)
+        size_augmentation = getSizeEncoding(normalized_sizes * size_scaling, d=1024, n=size_scaling)
+        single_image_feature_vector += size_augmentation
+    return lin_clf.predict(single_image_feature_vector)
 
 def train_classifier(json_path):
     global lin_clf
+    global image_feature_vectors
     with open(json_path, "r") as f:
         feedback = json.load(f)
     labels_with_feedback = feedback["clusterIndices"]
     lin_clf = svm.LinearSVC(dual="auto", max_iter=1_000_000_000)
     lin_clf.fit(image_feature_vectors, labels_with_feedback)
+    print(image_feature_vectors)
     print("SVM classifier finished")
 
 

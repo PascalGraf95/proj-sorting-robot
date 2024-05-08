@@ -5,6 +5,7 @@ from datetime import date, datetime
 import csv
 import ast
 from skimage.feature import hog
+import json
 
 date_str = ""
 
@@ -127,12 +128,14 @@ def print_mouse_position(event, x, y, flags, param):
 def image_thresholding_stack(image):
     image = cv2.medianBlur(image, 9)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 19, 3)
+    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 17, 3)
     image = cv2.bitwise_not(image)
     kernel = np.ones((3, 3), np.uint8)
     image = cv2.erode(image, kernel, iterations=1)
-    kernel = np.ones((5, 5), np.uint8)
-    image = cv2.dilate(image, kernel, iterations=3)
+    kernel = np.ones((3, 3), np.uint8)
+    image = cv2.dilate(image, kernel, iterations=4)
+    kernel = np.ones((3, 3), np.uint8)
+    image = cv2.erode(image, kernel, iterations=1)
     return image
 
 
@@ -200,22 +203,31 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
     return image_list
 
 
-def store_images_and_image_features(image_list, hu_moments_list):
+def store_images_and_image_features(image_list, image_feature_list):
     global date_str
     if not len(date_str):
         date_str = datetime.now().strftime("%y%m%d_%H%M%S")
-    dir_path = os.path.join(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images", date_str + "_images\images")
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+    cur_dir = os.path.dirname(__file__)
+    image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\images")
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
 
-    files_in_dir = len(os.listdir(dir_path))
-    with open(os.path.join(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images", date_str + "_image_features.csv"), 'a', newline='') as file:
+    files_in_dir = len(os.listdir(image_dir))
+    csv_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\image_features.csv")
+    json_data = {}
+    with open(csv_dir, 'a', newline='') as file:
         writer = csv.writer(file)
-        for image, hu_moments in zip(image_list, hu_moments_list):
+        for image, image_features in zip(image_list, image_feature_list):
             file_name = "image_{:05d}.png".format(files_in_dir)
-            cv2.imwrite(os.path.join(dir_path, file_name), image)
-            writer.writerow([os.path.join(dir_path, file_name), hu_moments])
+            cv2.imwrite(os.path.join(image_dir, file_name), image)
+            writer.writerow([os.path.join(image_dir, file_name), image_features])
+            json_data[file_name] = image_features[-1]
             files_in_dir += 1
+
+    json_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\sizes.json")
+    with open(json_dir, 'a', newline='') as file:
+        json.dump(json_data, file)
+        file.write('\n')
 
 
 def get_hog_features(image_array):

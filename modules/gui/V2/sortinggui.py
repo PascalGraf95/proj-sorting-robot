@@ -117,11 +117,12 @@ class sortingGui(QWidget, Ui_sortingGui):
 
     def activate_data_collection_phase(self):
         if self._camera and self._conveyor_belt:
+            self.initial_classification = False
             self.data_collection_active = True
             self._conveyor_belt.start()
             self._seperator.forward()
             self.ui.combo_cluster.clear()
-            self.data_collection_timer.start(2000)
+            self.data_collection_timer.start(1500)
             self.sorting_active = False
             self.sorting_timer.stop()
 
@@ -177,6 +178,9 @@ class sortingGui(QWidget, Ui_sortingGui):
                     raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
                                                                mode=cv2.RETR_TREE,
                                                                method=cv2.CHAIN_APPROX_NONE)
+                    cv2.drawContours(preprocessed_image, raw_contours, -1, (255, 255, 255), thickness=1)
+                    # cv2.imshow("ALL CONTOURS", preprocessed_image)
+                    # cv2.waitKey(0)
 
                     # Filter contours by size
                     for c in raw_contours:
@@ -220,14 +224,10 @@ class sortingGui(QWidget, Ui_sortingGui):
 
         elif self.ui.radio_yoloV7.isChecked():
             preprocessed_image = image_preprocessing(image)
+            cv2.imshow("Preprocessed Image", preprocessed_image)
+            # cv2.waitKey(0)
             standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
                 preprocessed_image, True)
-
-            print(f"lenght contours{len(contours)}")
-            print(f"lenght rectangles{len(rectangles)}")
-            print(f"lenght object_images{len(object_images)}")
-            # _, standardized_images = extract_features(contours, rectangles, object_images,
-            #                                           store_features=True)
 
         else:
             print("[ERROR] No viable detection mode selected")
@@ -365,14 +365,12 @@ class sortingGui(QWidget, Ui_sortingGui):
         if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
             # Get the first object which is the one furthest to the left on the conveyor.
             position, angle, index = get_next_object_to_grab(object_dictionary)
-            if not self._clustering_algorithm:
-                # Choose the storage number, start the synchronous or asynchronous deposit process.
-                n_storage = np.random.randint(0, 10)
-            else:
-                n_storage = predict_single_image_cluster(standardized_images[index])
-                # ToDo: Insert Colored Contour for next picked item
+            image_features, _ = extract_features(contours, rectangles, object_images, store_features=False)
+            print(image_features[0])
+            n_storage = predict_single_image_cluster(standardized_images[index], [image_features[0][-1]])
+            # ToDo: Insert Colored Contour for next picked item
 
-            self.ui.combo_cluster.setCurrentIndex(n_storage)
+            # self.ui.combo_cluster.setCurrentIndex(n_storage)
             # Transform its position into the robot coordinate system.
             position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
             # Approach its position and pick it up.
@@ -420,6 +418,8 @@ class sortingGui(QWidget, Ui_sortingGui):
             # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             convert = QtGui.QImage(image, image.shape[1], image.shape[0], image.strides[0], QtGui.QImage.Format.Format_BGR888)
             self.ui.image_cluster_examples.setPixmap(QtGui.QPixmap.fromImage(convert))
+        else:
+            self.ui.image_cluster_examples.clear()
 
     def update_selection_visibility(self):
         # Update the visibility of some menus by the selected sorting method
