@@ -151,8 +151,11 @@ def train_classifier(json_path):
     labels_with_feedback = feedback["clusterIndices"]
     lin_clf = svm.LinearSVC(dual="auto", max_iter=1_000_000_000)
     lin_clf.fit(image_feature_vectors, labels_with_feedback)
-    print(image_feature_vectors)
     print("SVM classifier finished")
+
+    data_paths = feedback["dataPaths"]
+
+    for data_path, label in zip(data_paths, labels_with_feedback):
 
 
 if __name__ == '__main__':

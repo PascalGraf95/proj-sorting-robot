@@ -267,6 +267,9 @@ class sortingGui(QWidget, Ui_sortingGui):
             else:
                 self.update_status_text("Status: Retrain after User Feedback")
                 self.train_on_user_feedback()
+                # ToDo: Function to build cluster images from training data
+                self.load_and_select_data()
+                self.cluster_example_images = show_cluster_images(self.reduced_features, self.labels, plot=False)
                 self.ui.label_data_loading.setAutoFillBackground(True)
                 self.ui.label_data_loading.setPalette(self._green_palette)
                 self.update_status_text("Status: Ready")
@@ -340,10 +343,11 @@ class sortingGui(QWidget, Ui_sortingGui):
 
         if self.ui.radio_classic.isChecked():
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
-            _, standardized_images = extract_features(contours, rectangles, object_images, store_features=False)
+            image_features, standardized_images = extract_features(contours, rectangles, object_images, store_features=False)
         elif self.ui.radio_yoloV7.isChecked():
             standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
                 preprocessed_image, False)
+            image_features = None
         else:
             print("[ERROR] No viable detection mode selected")
             return
@@ -365,12 +369,10 @@ class sortingGui(QWidget, Ui_sortingGui):
         if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
             # Get the first object which is the one furthest to the left on the conveyor.
             position, angle, index = get_next_object_to_grab(object_dictionary)
-            image_features, _ = extract_features(contours, rectangles, object_images, store_features=False)
-            print(image_features[0])
-            n_storage = predict_single_image_cluster(standardized_images[index], [image_features[0][-1]])
+            n_storage = predict_single_image_cluster(standardized_images[index], [image_features[index][-1]])
+            self.pca_cluster_image = [standardized_images[index]]
             # ToDo: Insert Colored Contour for next picked item
-
-            # self.ui.combo_cluster.setCurrentIndex(n_storage)
+            self.ui.combo_cluster.setCurrentIndex(n_storage)
             # Transform its position into the robot coordinate system.
             position_r = transform_cam_to_robot(np.array([position[0], position[1], 1]))
             # Approach its position and pick it up.

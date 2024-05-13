@@ -86,6 +86,7 @@ def get_cluster_images(reduced_features, image_array, labels, plot_animation=Tru
     return pca_cluster_image, cluster_example_images
 
 
+
 def select_features(features, feature_type='all'):
     # Feature Vector: [hue, hue, hue, hue, hue, hue, hue, extent, solidity, area, aspect, color, color, color, length]
     # Indices:        [ 0  , 1 ,  2 ,  3 ,  4 ,  5 ,  6 ,   7  ,      8   ,  9  ,   10  ,  11  ,  12  ,  13  ,   14  ]
