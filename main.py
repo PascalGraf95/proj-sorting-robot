@@ -176,11 +176,11 @@ def calibrate_robot():
 
 
 def main():
-    calibrate_robot()
-    calc_transformation_matrices()
-    robot = DoBotRobotController()
-    conveyor_belt = ConveyorBelt()
-    seperator = Seperator()
+    # calibrate_robot()
+    # calc_transformation_matrices()
+    # robot = DoBotRobotController()
+    # conveyor_belt = ConveyorBelt()
+    # seperator = Seperator()
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)

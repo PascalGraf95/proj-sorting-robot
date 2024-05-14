@@ -52,7 +52,8 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.model = self.v7mod.loadModel(str(modules_path)+'/'+'runs/train-seg/Final2/weights/best.pt')
 
         # Initial Conditions radio buttons
-        self.ui.radio_yoloV7.setChecked(True)
+        # self.ui.radio_yoloV7.setChecked(True)
+        self.ui.radio_classic.setChecked(True)
         self.ui.radio_2d.setChecked(True)
 
         # [0]: Manual Feature Selection
@@ -266,10 +267,18 @@ class sortingGui(QWidget, Ui_sortingGui):
             # Training after User Feedback
             else:
                 self.update_status_text("Status: Retrain after User Feedback")
-                self.train_on_user_feedback()
+                self.labels = self.train_on_user_feedback()
                 # ToDo: Function to build cluster images from training data
                 self.load_and_select_data()
-                self.cluster_example_images = show_cluster_images(self.reduced_features, self.labels, plot=False)
+                print("IMAGE ARRAY SHAPE:", self.image_array.shape)
+                print("LABEL SHAPE: ", len(self.labels))
+                self.cluster_example_images = show_cluster_images(self.image_array, self.labels, plot=False)
+                self.ui.combo_cluster.clear()
+                different_labels = list(np.unique(self.labels))
+                different_labels.sort()
+                label_strings = ["Cluster: {:02d}".format(l) for l in different_labels]
+                self.ui.combo_cluster.addItems(label_strings)
+                self.ui.combo_cluster.setCurrentIndex(0)
                 self.ui.label_data_loading.setAutoFillBackground(True)
                 self.ui.label_data_loading.setPalette(self._green_palette)
                 self.update_status_text("Status: Ready")
@@ -369,8 +378,11 @@ class sortingGui(QWidget, Ui_sortingGui):
         if not self._conveyor_belt.is_running() and self._robot.get_robot_state() == 0:
             # Get the first object which is the one furthest to the left on the conveyor.
             position, angle, index = get_next_object_to_grab(object_dictionary)
-            n_storage = predict_single_image_cluster(standardized_images[index], [image_features[index][-1]])
+            print("Next Object Position and Index", position, ",  ", index)
+            n_storage = predict_single_image_cluster(standardized_images[index], [image_features[index][-1]])[0]
+            print("Putting the next object into Storage:", n_storage)
             self.pca_cluster_image = [standardized_images[index]]
+            self.update_pca_cluster_image()
             # ToDo: Insert Colored Contour for next picked item
             self.ui.combo_cluster.setCurrentIndex(n_storage)
             # Transform its position into the robot coordinate system.
@@ -404,8 +416,7 @@ class sortingGui(QWidget, Ui_sortingGui):
         subprocess.Popen(exe_path)
 
     def train_on_user_feedback(self):
-        train_classifier(
-            r"E:\Studierendenprojekte\SemiSupervisedSortingCurrent\SemiSupervisedSortingCurrent\ExternalData\temp_cluster_data.json")
+        return train_classifier(r"E:\Studierendenprojekte\SemiSupervisedSortingCurrent\SemiSupervisedSortingCurrent\ExternalData\temp_cluster_data.json")
 
     def update_cluster_example_image(self):
         if self.cluster_example_images:

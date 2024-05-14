@@ -1,4 +1,6 @@
 # from tensorflow import keras
+import glob
+
 import cv2
 from keras.utils import img_to_array, load_img
 import os
@@ -122,8 +124,11 @@ def select_features(features, feature_type='all'):
 
 
 def parse_cv_image_features():
-    sorted_files = [f for f in os.listdir("stored_images") if "csv" in f]
-    with open(os.path.join(r"stored_images", sorted_files[-1]), 'r', newline='') as file:
+    base_path = os.path.join(os.path.dirname(__file__), '..', 'stored_images')
+    folders = [folder for folder in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(folder)]
+    latest_folder = max(folders, key=os.path.getctime)
+    print("Reading data paths from", latest_folder)
+    with open(os.path.join(latest_folder,"image_features.csv"), 'r', newline='') as file:
         reader = csv.reader(file)
         data_paths = []
         features = []
@@ -264,7 +269,7 @@ def show_live_collected_images(data, max_x_images=7, max_y_images=3, plot=True):
     return None
 
 
-def check_conveyor_force_stop_condition(object_dictionary, min_x_val=500):
+def check_conveyor_force_stop_condition(object_dictionary, min_x_val=700):
     for key, val in object_dictionary.items():
         if val[0][0] <= min_x_val:
             return True

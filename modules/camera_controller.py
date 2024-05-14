@@ -95,7 +95,7 @@ def main():
     cursor_x, cursor_y = -1, -1
 
     # Connect to the camera and capture images
-    for i in range(10000):
+    for i in range(100000):
         frame = cam.capture_image()
         frame = image_processing.image_preprocessing(frame)
 
