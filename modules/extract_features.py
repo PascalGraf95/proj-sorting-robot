@@ -89,7 +89,7 @@ def extract_dataset_features(data_path, destination_path):
     hdb = HDBSCAN(min_cluster_size=4)  # , cluster_selection_epsilon=15)
     hdb.fit(z)  # image_feature_vectors
     labels_without_feedback = list(hdb.labels_)
-    print(set(labels_without_feedback))
+    print("Labels without feedback: ", set(labels_without_feedback))
 
     # FILE_NAME = "current_data_cluster_with_size"
 
@@ -135,7 +135,6 @@ def predict_single_image_cluster(image, size):
         outputs = model(**inputs.to(device))
         single_image_feature_vector = outputs.last_hidden_state[:, 0, :].cpu()  # CLS output
     single_image_feature_vector = np.array(single_image_feature_vector)
-    print(use_size)
     if use_size:
         global min_size, max_size
         normalized_sizes = (size - min_size) / (max_size - min_size)

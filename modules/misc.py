@@ -98,22 +98,13 @@ def transform_robot_to_cam(robot_coordinates):
 
 
 def calc_transformation_matrices():
-    # Left Top: 228, 23 --> (-70, -40, -58, 0, 0, 0) bzw. (-70, -70, -58, 0, 0, 0)
-    # Left Bottom: 230, 357 --> (70, -40, -58, 0, 0, 0) bzw. (-70, -70, -58, 0, 0, 0)
-    # Right Top: 745, 15 --> (-70, 180, -58, 0, 0, 0) bzw. (-70, 150, -58, 0, 0, 0)
-    # Right Bottom: 750, 305--> (50, 180, -58, 0, 0, 0) bzw. (50, 150, -58, 0, 0, 0)
-    # Random Center Left: 418, 271 --> (-20, -60, -58, 0, 0, 0)
-    # Random Center Right: 1097, 415 --> (20, 120)
-    # Random Point Left: 273, 580 --> (60, -100)
+    # Random Center Left: 410, 284 --> (-20, -60, -60)
+    # Random Center Right: 1091, 435 --> (20, 120)
+    # Random Point Left: 266, 589 --> (60, -100)
 
-    # cam_points = np.array([[228, 23], [230, 357], [745, 15]]).astype(np.float32)
-    # robot_points = np.array([[-70, -70], [70, -70], [-70, 150]]).astype(np.float32)
-    # cam_points = np.array([[228, 23], [750, 305], [745, 15]]).astype(np.float32)
-    # robot_points = np.array([[-70, -70], [50, 150], [-70, 150]]).astype(np.float32)
-    cam_points = np.array([[418, 270], [1097, 414], [273, 579]]).astype(np.float32)
+    # cam_points = np.array([[418, 270], [1097, 414], [273, 579]]).astype(np.float32)
+    cam_points = np.array([[410, 284], [1091, 435], [266, 589]]).astype(np.float32)
     robot_points = np.array([[-20, -60], [20, 120], [60, -100]]).astype(np.float32)
-    # cam_points = np.array([[228, 100], [1329, 215], [873, 524]]).astype(np.float32)
-    # robot_points = np.array([[160, -112], [192, 182], [273, 61]]).astype(np.float32)
     global c2r_matrix, r2c_matrix
     c2r_matrix = cv2.getAffineTransform(cam_points, robot_points)
     c2r_matrix = np.append(c2r_matrix, np.array([[0, 0, 1]]), axis=0)

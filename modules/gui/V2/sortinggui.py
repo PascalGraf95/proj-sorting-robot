@@ -92,6 +92,7 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.image_array = None
         self.cluster_example_images = None
         self.reduced_features = None
+        self.labels_to_storage = None
 
         # Define Button Functions
         self.ui.button_connect_Hardware.clicked.connect(self.connect_hardware)
@@ -268,10 +269,10 @@ class sortingGui(QWidget, Ui_sortingGui):
             else:
                 self.update_status_text("Status: Retrain after User Feedback")
                 self.labels = self.train_on_user_feedback()
+                self.labels_to_storage = {l: i for i, l in enumerate(set(self.labels))}
+                print("Labels to Storage Dict: ", self.labels_to_storage)
                 # ToDo: Function to build cluster images from training data
                 self.load_and_select_data()
-                print("IMAGE ARRAY SHAPE:", self.image_array.shape)
-                print("LABEL SHAPE: ", len(self.labels))
                 self.cluster_example_images = show_cluster_images(self.image_array, self.labels, plot=False)
                 self.ui.combo_cluster.clear()
                 different_labels = list(np.unique(self.labels))
@@ -379,8 +380,9 @@ class sortingGui(QWidget, Ui_sortingGui):
             # Get the first object which is the one furthest to the left on the conveyor.
             position, angle, index = get_next_object_to_grab(object_dictionary)
             print("Next Object Position and Index", position, ",  ", index)
-            n_storage = predict_single_image_cluster(standardized_images[index], [image_features[index][-1]])[0]
-            print("Putting the next object into Storage:", n_storage)
+            label = predict_single_image_cluster(standardized_images[index], [image_features[index][-1]])[0]
+            n_storage = self.labels_to_storage[label]
+            print("Putting the next object into Storage: ", n_storage, " (Label: ", label, ")")
             self.pca_cluster_image = [standardized_images[index]]
             self.update_pca_cluster_image()
             # ToDo: Insert Colored Contour for next picked item
