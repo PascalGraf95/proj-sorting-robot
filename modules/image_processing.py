@@ -9,7 +9,6 @@ import json
 
 date_str = ""
 
-
 def show_image(image, wait_for_ms=0, window_name="Image"):
     abort = False
     cv2.namedWindow(window_name)
@@ -300,7 +299,6 @@ def get_mean_image_color(object_images, contours):
     return mean_color_list
 
 
-def standardize_images(image_list, xy_size=224):
     standardized_images = []
     for image in image_list:
         background_image = np.zeros((xy_size, xy_size, 3), dtype=np.uint8)
