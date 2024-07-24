@@ -176,8 +176,8 @@ def calibrate_robot():
 
 
 def main():
-    calibrate_robot()
-    calc_transformation_matrices()
+    # calibrate_robot()
+    # calc_transformation_matrices()
     # robot = DoBotRobotController()
     # conveyor_belt = ConveyorBelt()
     # seperator = Seperator()

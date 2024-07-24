@@ -269,14 +269,15 @@ class sortingGui(QWidget, Ui_sortingGui):
             else:
                 self.update_status_text("Status: Retrain after User Feedback")
                 self.labels = self.train_on_user_feedback()
-                self.labels_to_storage = {l: i for i, l in enumerate(set(self.labels))}
-                print("Labels to Storage Dict: ", self.labels_to_storage)
+
                 # ToDo: Function to build cluster images from training data
                 self.load_and_select_data()
                 self.cluster_example_images = show_cluster_images(self.image_array, self.labels, plot=False)
                 self.ui.combo_cluster.clear()
                 different_labels = list(np.unique(self.labels))
                 different_labels.sort()
+                self.labels_to_storage = {l: i for i, l in enumerate(different_labels)}
+                print("Labels to Storage Dict: ", self.labels_to_storage)
                 label_strings = ["Cluster: {:02d}".format(l) for l in different_labels]
                 self.ui.combo_cluster.addItems(label_strings)
                 self.ui.combo_cluster.setCurrentIndex(0)
@@ -423,6 +424,7 @@ class sortingGui(QWidget, Ui_sortingGui):
     def update_cluster_example_image(self):
         if self.cluster_example_images:
             idx = self.ui.combo_cluster.currentIndex()
+            print("IDX AT CLUSTER EXAMPLE: ", idx)
             image = self.cluster_example_images[idx]
             image_box_width = self.ui.image_cluster_examples.size().width()
             image_box_height = self.ui.image_cluster_examples.size().height()
