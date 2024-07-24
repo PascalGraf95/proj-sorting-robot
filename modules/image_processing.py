@@ -8,6 +8,7 @@ from skimage.feature import hog
 import json
 
 date_str = ""
+lens_type = 1 # 0 = old lens, 1 = new lens
 
 def show_image(image, wait_for_ms=0, window_name="Image"):
     abort = False
@@ -107,6 +108,8 @@ def detect_edges(image, t1=100, t2=200):
 
 
 def image_preprocessing(image):
+    if lens_type == 1:
+        return image
     # mean_vals = get_mean_patch_value(image)
     # correction_factors = get_white_balance_parameters(mean_vals)
     # image = correct_image_white_balance(image, correction_factors)
@@ -299,6 +302,7 @@ def get_mean_image_color(object_images, contours):
     return mean_color_list
 
 
+def standardize_images(image_list, xy_size=512):
     standardized_images = []
     for image in image_list:
         background_image = np.zeros((xy_size, xy_size, 3), dtype=np.uint8)
