@@ -6,9 +6,19 @@ import csv
 import ast
 from skimage.feature import hog
 import json
+from enum import Enum
 
 date_str = ""
-lens_type = 1 # 0 = old lens, 1 = new lens
+
+
+class PatchType(Enum):
+    OLD_LENS = 1
+    NEW_LENS = 2
+    CROP = 3
+
+
+lens_type: PatchType = PatchType.NEW_LENS
+
 
 def show_image(image, wait_for_ms=0, window_name="Image"):
     abort = False
@@ -61,7 +71,7 @@ def get_white_balance_parameters(average_value, method='min'):
         elif method == 'max':
             correction_factors.append(average_value[i] / float(max(average_value)))
         elif method == 'add5':
-            correction_factors.append(average_value[i] / float(min(min(average_value)+15, 255)))
+            correction_factors.append(average_value[i] / float(min(min(average_value) + 15, 255)))
         else:
             raise ValueError("Invalid method {}, choose from 'min', 'mean' and 'max'".format(method))
     return correction_factors
@@ -107,18 +117,19 @@ def detect_edges(image, t1=100, t2=200):
     return cv2.Canny(image, t1, t2)
 
 
-def image_preprocessing(image):
-    if lens_type == 1:
+def image_preprocessing(image, patch_type: PatchType):
+    if patch_type == PatchType.NEW_LENS:
         return image
-    # mean_vals = get_mean_patch_value(image)
-    # correction_factors = get_white_balance_parameters(mean_vals)
-    # image = correct_image_white_balance(image, correction_factors)
-    # image = equalize_histograms(image, True, 1.4, (8, 8))
-    patch_size = (710, 1600)
-    image = get_image_patch(image, (590, 800), patch_size)  # 650, 500, 700
-    patch_size_ratio = patch_size[0] / patch_size[1]
-    image = cv2.resize(image, (1600, int(1600 * patch_size_ratio)))
-    return image
+    elif patch_type == PatchType.NEW_LENS:
+        # mean_vals = get_mean_patch_value(image)
+        # correction_factors = get_white_balance_parameters(mean_vals)
+        # image = correct_image_white_balance(image, correction_factors)
+        # image = equalize_histograms(image, True, 1.4, (8, 8))
+        patch_size = (710, 1600)
+        image = get_image_patch(image, (590, 800), patch_size)  # 650, 500, 700
+        patch_size_ratio = patch_size[0] / patch_size[1]
+        image = cv2.resize(image, (1600, int(1600 * patch_size_ratio)))
+        return image
 
 
 def print_mouse_position(event, x, y, flags, param):
@@ -464,7 +475,7 @@ def main():
     # image = cv2.imread(r"../Testing/YoloObjektDetection/Images/Dataset/Srews_Nuts_Washers/1.jpg")
     # image2 = cv2.imread(r"E:\Studierendenprojekte\proj-camera-controller_\stored_images\temp\yoloImage.png")
     while True:
-        image = image_preprocessing(image)
+        image = image_preprocessing(image, lens_type)
         contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(image)
 
 

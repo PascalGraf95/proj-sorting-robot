@@ -82,7 +82,7 @@ def parse_and_preprocess_features(feature_method="cv_image_features", feature_ty
 def test_camera_image(cam):
     while True:
         image = cam.capture_image()
-        preprocessed_image = image_preprocessing(image)
+        preprocessed_image = image_preprocessing(image, lens_type)
         preprocessed_image2 = image_thresholding_stack(preprocessed_image)
         contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
                                                                                                 smaller_image_area=True)
