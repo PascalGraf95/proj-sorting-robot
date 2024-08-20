@@ -376,6 +376,9 @@ def extract_contours_and_rectangles_based_on_edges(object_images, old_contours, 
     rect_list = []
     for idx, im in enumerate(object_images):
         image = cv2.cvtColor(im.copy(), cv2.COLOR_BGR2GRAY)
+        print(f"saving image, name: object_images_{idx}.png")
+        cv2.imwrite(f"object_images_{idx}.png", image)
+        print("[Debug] Methode apply_edge_detection, Canny paramter: 20, 80")
         image = cv2.Canny(image, 20, 80)
         kernel = np.ones((5, 5), np.uint8)
         image = cv2.dilate(image, kernel, iterations=1)
