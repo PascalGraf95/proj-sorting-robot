@@ -119,8 +119,21 @@ def detect_edges(image, t1=100, t2=200):
 
 def image_preprocessing(image, patch_type: PatchType):
     if patch_type == PatchType.NEW_LENS:
+        # Save the image with an incremented number in the filename
+        global date_str
+        if not len(date_str):
+            date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+        cur_dir = os.path.dirname(__file__)
+        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\images")
+        if not os.path.exists(image_dir):
+            os.makedirs(image_dir)
+
+        files_in_dir = len(os.listdir(image_dir))
+        file_name = "image_{:05d}.png".format(files_in_dir)
+        file_path = os.path.join(image_dir, file_name)
+        cv2.imwrite(file_path, image)
         return image
-    elif patch_type == PatchType.NEW_LENS:
+    elif patch_type == PatchType.OLD_LENS:
         # mean_vals = get_mean_patch_value(image)
         # correction_factors = get_white_balance_parameters(mean_vals)
         # image = correct_image_white_balance(image, correction_factors)
