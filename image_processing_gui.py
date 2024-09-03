@@ -110,6 +110,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             elif operation_name == "Median Blur":
                 image = cv2.medianBlur(image, parameters[0])
                 self.stack_string += "image = cv2.medianBlur(image, {})\n".format(parameters[0])
+            elif operation_name == "FilterByColor":
+                # It converts the BGR color space of image to HSV color space
+                hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+                # Threshold of blue in HSV space
+                lower = np.array([parameters[0], parameters[1], parameters[2]])
+                upper = np.array([parameters[3], parameters[4], parameters[5]])
+
+                # preparing the mask to overlay
+                mask = cv2.inRange(hsv_image, lower, upper)
+                image = cv2.bitwise_and(image, image, mask=mask)
+                self.stack_string += "..."
+
             elif operation_name == "Otsu Binarization":
                 if len(image.shape) == 3:
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -278,6 +291,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem("3"))
         elif name == "Otsu Binarization" or name == "Invert":
             self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem(""))
+        elif name == "FilterByColor":
+            self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem("0, 0, 0, 255, 255, 255"))
         elif name == "Adaptive Thresholding":
             self.CurrentProcessingTable.setItem(row_count, 1, QtWidgets.QTableWidgetItem("11, 2"))
         elif name == "Erosion" or name == "Dilation" or name == "Opening" or name == "Closing":
