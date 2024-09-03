@@ -196,10 +196,11 @@ def extract_and_filter_contours(image, min_area=10000, image_area: ImageArea = I
 
 
 def get_rects_from_contours(contours):
+    scale_factor = 1.2
     rectangles = []
     for c in contours:
         rect = cv2.minAreaRect(c)
-        new_rect = (rect[0], (rect[1][0]*1.2, rect[1][1]*1.2), rect[2])
+        new_rect = (rect[0], (rect[1][0]*scale_factor, rect[1][1]*scale_factor), rect[2])
         rectangles.append(new_rect)
     return rectangles
 
