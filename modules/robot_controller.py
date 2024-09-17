@@ -6,23 +6,31 @@ from datetime import datetime
 import time
 import numpy as np
 from modules.misc import serial_ports
-
+from enum import Enum
 verbose = False
 
 
 robot_state_dictionary = {0: "Robot Ready", 1: "Robot at Standby Position", 2: "Robot approaching Storage Position",
                           3: "Robot approaching Standby Position"}
 
-
+class PickUpHeight(Enum):
+    CONVEYER_HEIGHT = 1
+    GEAR_HEIGHT = 2
 class DoBotRobotController:
     def __init__(self, linear_speed=250, angular_speed=250,
-                 base_frame=(0, 0, 0, 0, 0, 0), work_frame=(230, 0, 80, 0, 0, 0)):
+                 base_frame=(0, 0, 0, 0, 0, 0), work_frame=(230, 0, 80, 0, 0, 0), PickUpHeight=PickUpHeight.GEAR_HEIGHT):
         # Set Base and Work Frame for Robot
         self.base_frame = base_frame
         self.work_frame = work_frame
 
         # Set conveyor height and maneuvering height in work frame coordinates
-        self.conveyor_height = -59.5
+        if PickUpHeight == PickUpHeight.CONVEYER_HEIGHT:
+            self.conveyor_height = -59.5
+        elif PickUpHeight == PickUpHeight.GEAR_HEIGHT:
+            self.conveyor_height = -50.5
+
+
+
         self.maneuvering_height = -20
         self.standby_height = 60
         self.standby_position_right = (-40, 190, self.maneuvering_height, 0, 0, 0)
