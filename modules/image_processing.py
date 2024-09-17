@@ -165,7 +165,7 @@ def image_thresholding_stack(image):
     return image
 
 
-def extract_and_filter_contours(image, min_area=10000, image_area: ImageArea = ImageArea.FULL_PATCH):
+def extract_and_filter_contours(image, min_area=15000, image_area: ImageArea = ImageArea.FULL_PATCH):
     # Get all contours in image
     contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
