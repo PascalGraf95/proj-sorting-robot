@@ -3,6 +3,7 @@ import os
 from pyueye import ueye
 import numpy as np
 import cv2
+from .image_processing import LenseType
 
 
 class IDSCameraController:
@@ -21,7 +22,7 @@ class IDSCameraController:
         ueye.is_InitCamera(self.h_cam, None)
 
         pParam = ueye.wchar_p()
-        parameter_path = os.path.join(os.path.dirname(__file__), "configs", "camera_parameters_230224.ini")
+        parameter_path = os.path.join(os.path.dirname(__file__), "configs", "camera_parameters_241016.ini")
         pParam.value = parameter_path
         ueye.is_ParameterSet(self.h_cam, ueye.IS_PARAMETERSET_CMD_LOAD_FILE, pParam, 0)
 
@@ -97,7 +98,8 @@ def main():
     # Connect to the camera and capture images
     for i in range(100000):
         frame = cam.capture_image()
-        frame = image_processing.image_preprocessing(frame)
+        frame = image_processing.image_preprocessing(frame, LenseType.NEW_LENS)
+        binary_frame = image_processing.image_thresholding_stack(frame)
 
         # Add the cursor coordinates to the image
         cursor_position = f"({cursor_x}, {cursor_y})"
@@ -105,6 +107,7 @@ def main():
 
         # Show the image
         cv2.imshow("Test", frame)
+        cv2.imshow("Test Binary", binary_frame)
         cv2.setMouseCallback("Test", mouse_callback)
 
         # Check for key press to exit

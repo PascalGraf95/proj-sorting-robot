@@ -321,9 +321,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_SortingGUI):
 
     def data_collection_step(self):
         image = self._camera.capture_image()
-        preprocessed_image = image_preprocessing(image)
+        preprocessed_image = image_preprocessing(image, LenseType.NEW_LENS)
         contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
-                                                                                                smaller_image_area=True)
+                                                                                                image_area=ImageArea.FULL_PATCH)
         _, standardized_images = extract_features(contours, rectangles, object_images, store_features=True)
         self.cluster_example_images = show_live_collected_images(standardized_images, plot=False)
         self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)

@@ -116,6 +116,7 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.pca_cluster_timer.timeout.connect(self.update_pca_cluster_image)
 
         self.update_selection_visibility()
+        self.lensTypeUsed = LenseType.NEW_LENS
 
     def activate_data_collection_phase(self):
         if self._camera and self._conveyor_belt:
@@ -137,12 +138,11 @@ class sortingGui(QWidget, Ui_sortingGui):
 
         image = camera_image
         if self.ui.radio_classic.isChecked():
-            preprocessed_image = image_preprocessing(image,lens_type)
-            contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
-                                                                                                    smaller_image_area=True)
+            preprocessed_image = image_preprocessing(image,self.lensTypeUsed)
+            contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image, smaller_image_area=True)
             _, standardized_images = extract_features(contours, rectangles, object_images, store_features=store_features)
         elif self.ui.radio_yoloV7.isChecked():
-            preprocessed_image = image_preprocessing(image,lens_type)
+            preprocessed_image = image_preprocessing(image,self.lensTypeUsed)
             standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
                 preprocessed_image, store_features)
         else:
@@ -219,13 +219,13 @@ class sortingGui(QWidget, Ui_sortingGui):
     def data_collection_step(self):
         image = self._camera.capture_image()
         if self.ui.radio_classic.isChecked():
-            preprocessed_image = image_preprocessing(image,lens_type)
+            preprocessed_image = image_preprocessing(image, self.lensTypeUsed)
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
-                                                                                                    smaller_image_area=True)
+                                                                                                    image_area=ImageArea.FULL_PATCH)
             _, standardized_images = extract_features(contours, rectangles, object_images, store_features=True)
 
         elif self.ui.radio_yoloV7.isChecked():
-            preprocessed_image = image_preprocessing(image,lens_type)
+            preprocessed_image = image_preprocessing(image, self.lensTypeUsed)
             cv2.imshow("Preprocessed Image", preprocessed_image)
             # cv2.waitKey(0)
             standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
@@ -238,6 +238,7 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.cluster_example_images = show_live_collected_images(standardized_images, plot=False)
         self.live_conveyor_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255),
                                                     2)
+        
         self.update_cluster_example_image()
 
     def load_and_cluster_data(self):
@@ -350,7 +351,7 @@ class sortingGui(QWidget, Ui_sortingGui):
     def sorting_step(self):
         image = self._camera.capture_image()
         # Preprocess image and extract objects
-        preprocessed_image = image_preprocessing(image,lens_type)
+        preprocessed_image = image_preprocessing(image, self.lensTypeUsed)
 
         if self.ui.radio_classic.isChecked():
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image)
