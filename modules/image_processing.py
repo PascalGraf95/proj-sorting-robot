@@ -36,21 +36,12 @@ def show_image_once(image):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-"""
-Added padding_percent to get_image_patch function to increase the size of the patch.
-- padding_percent is a percentage of the patch size that is added to the patch size. Default is 5%.
-"""
-def get_image_patch(image, patch_pos, patch_size, padding_percent = 5):
-    patch_pos = int(patch_pos[0]), int(patch_pos[1])
-    patch_size = int(patch_size[0]), int(patch_size[1])
 
-    padding_x = int(patch_size[1] * padding_percent / 100)
-    padding_y = int(patch_size[0] * padding_percent / 100)
-
-    y_min = max(patch_pos[0] - patch_size[0] // 2 -padding_y, 0)
-    y_max = min(patch_pos[0] + patch_size[0] // 2 + padding_y, image.shape[0])
-    x_min = max(patch_pos[1] - patch_size[1] // 2 -padding_x, 0)
-    x_max = min(patch_pos[1] + patch_size[1] // 2 +padding_x , image.shape[1])
+def get_image_patch(image, patch_pos, patch_size):
+    y_min = np.max([patch_pos[0] - patch_size[0] // 2, 0]).astype(int)
+    y_max = np.min([patch_pos[0] + patch_size[0] // 2, image.shape[0]]).astype(int)
+    x_min = np.max([patch_pos[1] - patch_size[1] // 2, 0]).astype(int)
+    x_max = np.min([patch_pos[1] + patch_size[1] // 2, image.shape[1]]).astype(int)
     return image[y_min:y_max, x_min:x_max].copy()
 
 
