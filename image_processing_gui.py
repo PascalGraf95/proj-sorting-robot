@@ -112,7 +112,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.stack_string += "image = cv2.medianBlur(image, {})\n".format(parameters[0])
             elif operation_name == "FilterByColor":
                 # It converts the BGR color space of image to HSV color space
-                hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+                hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
 
                 # Threshold of blue in HSV space
                 lower = np.array([parameters[0], parameters[1], parameters[2]])

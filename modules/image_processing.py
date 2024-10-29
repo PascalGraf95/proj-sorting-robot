@@ -143,16 +143,9 @@ def print_mouse_position(event, x, y, flags, param):
 
 
 def image_thresholding_stack(image):
+    """
+    # Original
     image = cv2.medianBlur(image, 7)
-
-    # hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    # Threshold of blue in HSV space
-    # lower = np.array([0, 0, 60])
-    # upper = np.array([200, 180, 255])
-    # preparing the mask to overlay
-    # mask = cv2.inRange(hsv_image, lower, upper)
-    # image = cv2.bitwise_and(image, image, mask=mask)
-
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 3)
     image = cv2.bitwise_not(image)
@@ -160,8 +153,32 @@ def image_thresholding_stack(image):
     image = cv2.erode(image, kernel, iterations=1)
     kernel = np.ones((5, 5), np.uint8)
     image = cv2.dilate(image, kernel, iterations=4)
-    # kernel = np.ones((3, 3), np.uint8)
-    # image = cv2.erode(image, kernel, iterations=1)
+    """
+
+    """
+    # Alternative 1
+    image = cv2.medianBlur(image, 9)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 41, 9)
+    image = cv2.bitwise_not(image)
+    kernel = np.ones((5, 5), np.uint8)
+    image = cv2.erode(image, kernel, iterations=1)
+    kernel = np.ones((15, 15), np.uint8)
+    image = cv2.dilate(image, kernel, iterations=3)
+    """
+
+    # Alternative 2
+    image = cv2.medianBlur(image, 11)
+    hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV) # wrong conversion on purpose
+    # Threshold of blue in HSV space
+    lower = np.array([0, 0, 100])
+    upper = np.array([255, 150, 255])
+    # preparing the mask to overlay
+    mask = cv2.inRange(hsv_image, lower, upper)
+    image = cv2.bitwise_and(image, image, mask=mask)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    kernel = np.ones((17, 17), np.uint8)
+    image = cv2.dilate(image, kernel, iterations=2)
     return image
 
 

@@ -22,7 +22,7 @@ class IDSCameraController:
         ueye.is_InitCamera(self.h_cam, None)
 
         pParam = ueye.wchar_p()
-        parameter_path = os.path.join(os.path.dirname(__file__), "configs", "camera_parameters_230224.ini")
+        parameter_path = os.path.join(os.path.dirname(__file__), "configs", "camera_parameters_241016.ini")
         pParam.value = parameter_path
         ueye.is_ParameterSet(self.h_cam, ueye.IS_PARAMETERSET_CMD_LOAD_FILE, pParam, 0)
 
