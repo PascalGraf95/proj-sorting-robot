@@ -181,9 +181,12 @@ def image_thresholding_stack(image):
     image = cv2.dilate(image, kernel, iterations=2)
     return image
     """
+
     # Alternative 3
     lower_greens = [0,0,11]
     upper_greens=[179,255,89]
+    lower_greens = np.array([0,0,11])
+    upper_greens = np.array([179,255,89])
     image = cv2.medianBlur(image, 11)
     hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV) # wrong conversion on purpose
     # preparing the mask to overlay
@@ -192,6 +195,7 @@ def image_thresholding_stack(image):
     image = cv2.bitwise_and(image, image, mask=mask_inv)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     kernel = np.ones((17, 17), np.uint8)
+    kernel = np.ones((25, 25), np.uint8)
     image = cv2.dilate(image, kernel, iterations=2)
     return image
 
@@ -229,10 +233,12 @@ def extract_and_filter_contours(image, min_area=15000, image_area: ImageArea = I
 
 def get_rects_from_contours(contours):
     scale_factor = 1.2
+    #scale_factor = 1.2
     rectangles = []
     for c in contours:
         rect = cv2.minAreaRect(c)
         new_rect = (rect[0], (rect[1][0]*scale_factor, rect[1][1]*scale_factor), rect[2])
+        new_rect = (rect[0], (rect[1][0] + 50, rect[1][1] + 50), rect[2])
         rectangles.append(new_rect)
     return rectangles
 
@@ -363,6 +369,7 @@ def get_mean_image_color(object_images, contours):
     return mean_color_list
 
 
+#TODO_Anom: hier Quali bilder erhöhen scaling unpassend?
 def standardize_images(image_list, xy_size=512):
     standardized_images = []
     for image in image_list:
