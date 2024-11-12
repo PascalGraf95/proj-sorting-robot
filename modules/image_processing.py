@@ -165,7 +165,7 @@ def image_thresholding_stack(image):
     image = cv2.erode(image, kernel, iterations=1)
     kernel = np.ones((15, 15), np.uint8)
     image = cv2.dilate(image, kernel, iterations=3)
-    """
+    
 
     # Alternative 2
     image = cv2.medianBlur(image, 11)
@@ -180,6 +180,21 @@ def image_thresholding_stack(image):
     kernel = np.ones((17, 17), np.uint8)
     image = cv2.dilate(image, kernel, iterations=2)
     return image
+    """
+    # Alternative 3
+    lower_greens = [0,0,11]
+    upper_greens=[179,255,89]
+    image = cv2.medianBlur(image, 11)
+    hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV) # wrong conversion on purpose
+    # preparing the mask to overlay
+    mask = cv2.inRange(hsv_image, lower_greens, upper_greens)
+    mask_inv = cv2.bitwise_not(mask)
+    image = cv2.bitwise_and(image, image, mask=mask_inv)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    kernel = np.ones((17, 17), np.uint8)
+    image = cv2.dilate(image, kernel, iterations=2)
+    return image
+
 
 
 def extract_and_filter_contours(image, min_area=15000, image_area: ImageArea = ImageArea.FULL_PATCH):
