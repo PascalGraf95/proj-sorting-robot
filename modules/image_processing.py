@@ -232,12 +232,12 @@ def get_rects_from_contours(contours):
     rectangles = []
     for c in contours:
         rect = cv2.minAreaRect(c)
-        new_width, new_height = rect[1][0]+50, rect[1][1]+50
-        if min(new_width, new_height) *2 < max(new_width, new_height):
+        new_width, new_height = rect[1][0]+75, rect[1][1]+75
+        if min(new_width, new_height) * 2 < max(new_width, new_height):
             if new_width < new_height:
-                new_width += 50
+                new_width += 75
             else:
-                new_height += 50
+                new_height += 75
         new_rect = (rect[0], (new_width, new_height), rect[2])
         rectangles.append(new_rect)
     return rectangles
