@@ -102,9 +102,14 @@ def calc_transformation_matrices():
     # Random Center Right: 1091, 435 --> (20, 120)
     # Random Point Left: 266, 589 --> (60, -100)
 
+    #new lense:
+    # 1. MOUSE X: 146, MOUSE Y: 291, Pose After:  [-30. , -30.00000572 , -49.99998474 , -0. , 0. ,-0.        ]
+    # 2. MOUSE X: 360, MOUSE Y: 586 Pose Before:  [ 0 , -5. ,  -50  0.00000000e+00 , 0.00000000e+00 -9.00000000e+01]
+    # 3. MOUSE X: 1138, MOUSE Y: 30 Pose Before:  [-60.00010681 , 79.99996185 , -49.99992371 , -0. , 0. , 90.
+
     # cam_points = np.array([[418, 270], [1097, 414], [273, 579]]).astype(np.float32)
-    cam_points = np.array([[410, 284], [1091, 435], [266, 589]]).astype(np.float32)
-    robot_points = np.array([[-20, -60], [20, 120], [60, -100]]).astype(np.float32)
+    cam_points = np.array([[146, 291], [360, 586], [1138, 30]]).astype(np.float32)
+    robot_points = np.array([[-30, -30], [0, -5], [-60, -80]]).astype(np.float32)
     global c2r_matrix, r2c_matrix
     c2r_matrix = cv2.getAffineTransform(cam_points, robot_points)
     c2r_matrix = np.append(c2r_matrix, np.array([[0, 0, 1]]), axis=0)

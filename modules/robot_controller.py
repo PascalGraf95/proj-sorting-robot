@@ -213,13 +213,16 @@ class DoBotRobotController:
             x = input("Enter X Position: ")
             y = input("Enter Y Position: ")
             z = input("Enter Z Position: ")
+            r = input("Enter R angle: (default 0), change back to 0 when finished!")
             if x == "":
                 x = self.robot.pose[0]
             if y == "":
                 y = self.robot.pose[1]
             if z == "":
                 z = self.robot.pose[2]
-            self.robot.move_linear((float(x), float(y), float(z), 0, 0, 0))
+            if r == "":
+                r = self.robot.pose[5]
+            self.robot.move_linear((float(x), float(y), float(z), 0, 0, float(r)))
             print("Pose After: ", self.robot.pose)
             if input("Abort? y/n") == "y":
                 break
