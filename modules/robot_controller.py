@@ -82,6 +82,9 @@ class DoBotRobotController:
 
         # Perform homing
         print("[INFO] Starting homing process...")
+        # rotate to 0°
+        if self.robot.pose[5] != 0:
+            self.robot.move_linear((self.robot.pose[0], self.robot.pose[1], self.robot.pose[2], 0, 0, float(0)))
         self.robot.sync_robot.perform_homing()
         print("[INFO] Homing finished...")
 
