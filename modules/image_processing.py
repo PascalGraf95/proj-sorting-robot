@@ -367,17 +367,21 @@ def get_mean_image_color(object_images, contours):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         mean_color_list.append(list(cv2.mean(image, mask=mask))[:3])
     return mean_color_list
+
 standardize_images_called = 0
 #TODO_Anom: hier Quali bilder erhöhen scaling unpassend?
-def standardize_images(image_list, xy_size=512):
+def standardize_images(image_list, xy_size=512, debug=False):
     print("[DEBUG] Methode standardize_images")
+    global standardize_images_called
     standardize_images_called += 1
     print("[DEBUG] number of calls to standardize_images: ", standardize_images_called)
-    
+
     standardized_images = []
     for image in image_list:
-        print("[DEBUG] Methode standardize_images, image.shape: ", image.shape) 
+        print("[DEBUG] Methode standardize_images, image.shape: ", image.shape)
         print("[Debug] Methode standardize_images, xy_size: ", xy_size)
+        if debug:
+            cv2.imwrite(f"original_image_{standardize_images_called}.jpg", image)
         background_image = np.zeros((xy_size, xy_size, 3), dtype=np.uint8)
         old_width = image.shape[1]
         scaling_factor = xy_size / old_width
