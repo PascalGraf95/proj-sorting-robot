@@ -181,7 +181,7 @@ def image_thresholding_stack(image):
     image = cv2.dilate(image, kernel, iterations=2)
     return image
     """
-
+    """
     # Alternative 3
     lower_greens = np.array([0,0,11])
     upper_greens = np.array([179,255,89])
@@ -195,6 +195,11 @@ def image_thresholding_stack(image):
     kernel = np.ones((25, 25), np.uint8)
     image = cv2.dilate(image, kernel, iterations=2)
     return image
+    """
+    # Alternative 4
+    greyscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)(image, cv2.COLOR_BGR2GRAY)
+    _, threshold = cv2.threshold(greyscale_image, 80, 255, cv2.THRESH_BINARY)
+    return threshold
 
 
 
