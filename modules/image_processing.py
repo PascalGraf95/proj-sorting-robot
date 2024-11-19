@@ -140,8 +140,8 @@ def print_mouse_position(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         print("MOUSE X: {}, MOUSE Y: {}".format(x, y))
         return x, y
-
-
+#global initialization
+bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold= 30, detectShadows=True)
 def image_thresholding_stack(image):
     """
     # Original
@@ -196,10 +196,29 @@ def image_thresholding_stack(image):
     image = cv2.dilate(image, kernel, iterations=2)
     return image
     """
+    """
     # Alternative 4
     greyscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)(image, cv2.COLOR_BGR2GRAY)
     _, threshold = cv2.threshold(greyscale_image, 80, 255, cv2.THRESH_BINARY)
     return threshold
+    """
+    
+    global bg_subtractor
+    # convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # background subtraction
+    fg_mask = bg_subtractor(gray)
+    # remove shadow pixels
+    fg_mask[fg_mask == 127] = 0
+    # clean mask (MORPH)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)) 
+    cleaned_fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)  # Fill holes
+    cleaned_fg_mask = cv2.morphologyEx(cleaned_fg_mask, cv2.MORPH_OPEN, kernel)  # Remove noise
+    #threshold
+    _, binary_mask = cv2.threshold(cleaned_fg_mask, 127, 255, cv2.THRESH_BINARY)
+    return binary_mask
+
+
 
 
 
