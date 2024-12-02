@@ -16,10 +16,12 @@ class LenseType(Enum):
     NEW_LENS = 2
     CROP = 3
 
+
 class ImageArea(Enum):
     TINY_PATCH = 1
     SMALL_PATCH = 2
     FULL_PATCH = 3
+
 
 def show_image(image, wait_for_ms=0, window_name="Image"):
     abort = False
@@ -62,7 +64,7 @@ def get_mean_patch_value(image):
     return list(np.mean(image[:, :, i]) for i in range(3))
 
 
-def  get_white_balance_parameters(average_value, method='min'):
+def get_white_balance_parameters(average_value, method='min'):
     correction_factors = []
     for i in range(3):
         if method == 'min':
@@ -140,8 +142,12 @@ def print_mouse_position(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         print("MOUSE X: {}, MOUSE Y: {}".format(x, y))
         return x, y
-#global initialization
-bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold= 30, detectShadows=True)
+
+
+# global initialization
+bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=30, detectShadows=True)
+
+
 def image_thresholding_stack(image):
     global bg_subtractor
     # convert to grayscale
@@ -151,15 +157,12 @@ def image_thresholding_stack(image):
     # remove shadow pixels
     fg_mask[fg_mask == 127] = 0
     # clean mask (MORPH)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)) 
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
     cleaned_fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)  # Fill holes
     cleaned_fg_mask = cv2.morphologyEx(cleaned_fg_mask, cv2.MORPH_OPEN, kernel)  # Remove noise
-    #threshold
+    # threshold
     _, binary_mask = cv2.threshold(cleaned_fg_mask, 127, 255, cv2.THRESH_BINARY)
     return binary_mask
-
-
-
 
 
 def extract_and_filter_contours(image, min_area=15000, image_area: ImageArea = ImageArea.FULL_PATCH):
@@ -187,7 +190,8 @@ def extract_and_filter_contours(image, min_area=15000, image_area: ImageArea = I
                 else:
                     x_lim = 20
                     y_lim = 20
-                if x > x_lim and y > y_lim and x+w < image.shape[1]-x_lim and y+h < image.shape[0]-y_lim and min_side > 20:
+                if x > x_lim and y > y_lim and x + w < image.shape[1] - x_lim and y + h < image.shape[
+                    0] - y_lim and min_side > 20:
                     filtered_contours.append(c)
     return filtered_contours
 
@@ -196,7 +200,7 @@ def get_rects_from_contours(contours):
     rectangles = []
     for c in contours:
         rect = cv2.minAreaRect(c)
-        new_width, new_height = rect[1][0]+75, rect[1][1]+75
+        new_width, new_height = rect[1][0] + 75, rect[1][1] + 75
         if min(new_width, new_height) * 2 < max(new_width, new_height):
             if new_width < new_height:
                 new_width += 75
@@ -332,8 +336,11 @@ def get_mean_image_color(object_images, contours):
         mean_color_list.append(list(cv2.mean(image, mask=mask))[:3])
     return mean_color_list
 
+
 standardize_images_called = 0
-#TODO_Anom: hier Quali bilder erhöhen scaling unpassend?
+
+
+# TODO_Anom: hier Quali bilder erhöhen scaling unpassend?
 def standardize_images(image_list, xy_size=512, debug=False):
     print("[DEBUG] Methode standardize_images")
     global standardize_images_called
@@ -352,8 +359,8 @@ def standardize_images(image_list, xy_size=512, debug=False):
         scaled_image = cv2.resize(image, (0, 0), fy=scaling_factor, fx=scaling_factor)
 
         height_mod = scaled_image.shape[0] % 2
-        background_image[background_image.shape[0]//2 - scaled_image.shape[0]//2 - height_mod:
-                         background_image.shape[0]//2 + scaled_image.shape[0]//2, :, :] = scaled_image
+        background_image[background_image.shape[0] // 2 - scaled_image.shape[0] // 2 - height_mod:
+                         background_image.shape[0] // 2 + scaled_image.shape[0] // 2, :, :] = scaled_image
         standardized_images.append(background_image)
     return standardized_images
 
@@ -514,7 +521,6 @@ def main():
         image = image_preprocessing(image, LenseType.NEW_LENS)
         contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(image)
 
-
     object_dictionary = get_object_angles(rectangles=rectangles)
     print(object_dictionary)
 
@@ -534,6 +540,7 @@ def main():
     show_image(image)
     show_image(corrected_image)
     '''
+
 
 if __name__ == '__main__':
     main()
