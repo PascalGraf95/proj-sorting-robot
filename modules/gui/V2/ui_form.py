@@ -233,6 +233,11 @@ class Ui_sortingGui(object):
 
         self.gridLayout_2.addItem(self.verticalSpacer_2, 8, 0, 1, 1)
 
+        self.button_video_record = QPushButton(self.verticalLayoutWidget_3)
+        self.button_video_record.setObjectName(u"button_video_record")
+
+        self.gridLayout_2.addWidget(self.button_video_record, 1, 0, 1, 1)
+
         self.button_data_collection = QPushButton(self.verticalLayoutWidget_3)
         self.button_data_collection.setObjectName(u"button_data_collection")
 
@@ -479,6 +484,7 @@ class Ui_sortingGui(object):
         self.label_phases.setText(QCoreApplication.translate("sortingGui", u"Phases", None))
         self.label_sorting.setText("")
         self.button_data_collection.setText(QCoreApplication.translate("sortingGui", u"Data Collection Phase", None))
+        self.button_video_record.setText(QCoreApplication.translate("sortingGui", u"Record Background Video", None))
         self.SortingType.setItemText(0, QCoreApplication.translate("sortingGui", u"Manually Select Data", None))
         self.SortingType.setItemText(1, QCoreApplication.translate("sortingGui", u"Autoencoder", None))
         self.SortingType.setItemText(2, QCoreApplication.translate("sortingGui", u"Transformer", None))

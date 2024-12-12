@@ -98,6 +98,7 @@ class sortingGui(QWidget, Ui_sortingGui):
         self.ui.button_connect_Hardware.clicked.connect(self.connect_hardware)
         self.ui.button_dobot_homing.clicked.connect(self.homing_dobot)
         self.ui.button_dobot_standby.clicked.connect(self.standby_dobot)
+        self.ui.button_video_record.clicked.connect(self.activate_video_record_phase())
         self.ui.button_data_collection.clicked.connect(self.activate_data_collection_phase)
         self.ui.Button_Start_User_Feedback.clicked.connect(self.start_user_feedback)
         self.ui.button_load_and_cluster_data.clicked.connect(self.load_and_cluster_data)
@@ -128,6 +129,10 @@ class sortingGui(QWidget, Ui_sortingGui):
             self.data_collection_timer.start(1500)
             self.sorting_active = False
             self.sorting_timer.stop()
+    def activate_video_record_phase(self):
+        if self._camera and self._conveyor_belt:
+            self.ui.combo_cluster.clear()
+          #TODO
 
     def detect_objects(self, camera_image, store_features=False):
         object_images = None
