@@ -109,7 +109,7 @@ def calc_transformation_matrices():
 
     # cam_points = np.array([[418, 270], [1097, 414], [273, 579]]).astype(np.float32)
     cam_points = np.array([[146, 291], [360, 586], [1138, 30]]).astype(np.float32)
-    robot_points = np.array([[-30, -30], [0, -5], [-60, -80]]).astype(np.float32)
+    robot_points = np.array([[-30, -30], [0, -5], [-60, 80]]).astype(np.float32)
     global c2r_matrix, r2c_matrix
     c2r_matrix = cv2.getAffineTransform(cam_points, robot_points)
     c2r_matrix = np.append(c2r_matrix, np.array([[0, 0, 1]]), axis=0)
