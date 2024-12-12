@@ -1,3 +1,4 @@
+
 import cv2
 
 from modules.camera_controller import IDSCameraController, WebcamCameraController
@@ -80,6 +81,15 @@ def parse_and_preprocess_features(feature_method="cv_image_features", feature_ty
 
 
 def test_camera_image(cam):
+
+    print("[DEBUG] Status: Connecting to Conveyor")
+    conveyor_belt = ConveyorBelt()
+    conveyor_belt.start()
+    time.sleep(5)
+    print(cam.width, cam.height)
+    out = cv2.VideoWriter('background_video.avi', cv2.VideoWriter_fourcc(*'XVID'), 30, (int(cam.width), int(cam.height)))
+    recording_duration = 120
+    start_time = time.time()
     while True:
         image = cam.capture_image()
         preprocessed_image = image_preprocessing(image, LenseType.NEW_LENS)
@@ -89,11 +99,20 @@ def test_camera_image(cam):
         _ = extract_features(contours, rectangles, object_images, store_features=False)
         canvas_image = cv2.drawContours(preprocessed_image, bounding_boxes, -1, (0, 0, 255), 2)
 
+        frame = cam.capture_image()
+        if frame is None:
+            print("[DEBUG] No frame detected")
+            break
+        out.write(frame)
+        if time.time() - start_time >= recording_duration:
+            print("[DEBUG] Recording finished")
+            conveyor_belt.stop()
+            sys.exit()
         if show_image(canvas_image, wait_for_ms=1):
             break
         if show_image(preprocessed_image2, wait_for_ms=1, window_name="Image2"):
             break
-
+    conveyor_belt.stop()
 
 def sorting_phase(cam, robot, conveyor_belt, interval=0.5, mode="sync", clustering_algorithm=None,
                   reduction_algorithm=None, feature_type="all", preprocessing="rescaling"):

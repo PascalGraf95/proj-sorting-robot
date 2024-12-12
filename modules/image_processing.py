@@ -7,6 +7,7 @@ import ast
 from skimage.feature import hog
 import json
 from enum import Enum
+import time
 
 date_str = ""
 
@@ -145,17 +146,43 @@ def print_mouse_position(event, x, y, flags, param):
 
 
 # global initialization
-bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=30, detectShadows=True)
+bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=30, detectShadows=False)
+first_call = True
+
+
+def pretrain_background_subtractor():
+    global bg_subtractor
+    print(os.path.abspath(os.path.join("..", "..", "..", "background_video.avi")))
+    cap = cv2.VideoCapture(os.path.abspath(os.path.join("..", "..", "..", "background_video.avi")))
+    if not cap.isOpened():
+        print("Error opening video stream or file")
+        return None
+    print("[DEBUG] Pre-train background subtractor")
+    start_time = time.time()
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        bg_subtractor.apply(gray_frame, learningRate=0.01)
+
+    cap.release()
+    end_time = time.time()
+    print("[DEBUG] Pre-train background finished in: {}".format(end_time - start_time))
 
 
 def image_thresholding_stack(image):
-    global bg_subtractor
+    global bg_subtractor, first_call
+    if first_call:
+        print("[DEBUG] background subtractor gets trained")
+        pretrain_background_subtractor()
+        first_call = False
     # convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # background subtraction
-    fg_mask = bg_subtractor(gray)
+    fg_mask = bg_subtractor.apply(gray, learningRate=0)
     # remove shadow pixels
-    fg_mask[fg_mask == 127] = 0
+    # fg_mask[fg_mask == 127] = 0
     # clean mask (MORPH)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
     cleaned_fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)  # Fill holes
@@ -540,6 +567,30 @@ def main():
     show_image(image)
     show_image(corrected_image)
     '''
+
+
+def video_capture(cam, conveyer):
+    print("[DEBUG] Status: Connecting to Conveyor")
+
+    conveyor_belt = conveyer.ConveyorBelt()
+    conveyor_belt.start()
+    time.sleep(5)
+    out = cv2.VideoWriter('background_video.avi', cv2.CAP_PROP_FOURCC, 30,
+                          (int(cam.width), int(cam.height)))
+    recording_duration = 120
+    print('[Debug] Start recording video, duration: {0} seconds'.format(recording_duration))
+    start_time = time.time()
+    while True:
+        frame = cam.capture_image()
+        if frame is None:
+            print("[DEBUG] No frame detected")
+            conveyor_belt.stop()
+            break
+        out.write(frame)
+        if time.time() - start_time >= recording_duration:
+            print("[DEBUG] Recording finished")
+            conveyor_belt.stop()
+            break
 
 
 if __name__ == '__main__':
