@@ -368,7 +368,7 @@ standardize_images_called = 0
 
 
 # TODO_Anom: hier Quali bilder erhöhen scaling unpassend?
-def standardize_images(image_list, xy_size=512, debug=False):
+def standardize_images(image_list, xy_size=512, debug=True):
     print("[DEBUG] Methode standardize_images")
     global standardize_images_called
     standardize_images_called += 1
@@ -571,7 +571,7 @@ def main():
 
 def video_capture(cam, conveyer):
     print("[DEBUG] Status: Connecting to Conveyor")
-
+    print("[DEBUG] Test this gets called: video_capture(cam, conveyer)")
     conveyor_belt = conveyer.ConveyorBelt()
     conveyor_belt.start()
     time.sleep(5)
