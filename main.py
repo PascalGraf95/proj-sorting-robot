@@ -81,13 +81,15 @@ def parse_and_preprocess_features(feature_method="cv_image_features", feature_ty
 
 
 def test_camera_image(cam):
-    print("[DEBUG] Status: test_camera_image")
+
+    print("[DEBUG] Status: Connecting to Conveyor")
     conveyor_belt = ConveyorBelt()
-    conveyor_belt.stop()
     conveyor_belt.start()
     time.sleep(5)
     print(cam.width, cam.height)
-
+    out = cv2.VideoWriter('background_video.avi', cv2.VideoWriter_fourcc(*'XVID'), 30, (int(cam.width), int(cam.height)))
+    recording_duration = 120
+    start_time = time.time()
     while True:
         image = cam.capture_image()
         preprocessed_image = image_preprocessing(image, LenseType.NEW_LENS)
@@ -101,7 +103,11 @@ def test_camera_image(cam):
         if frame is None:
             print("[DEBUG] No frame detected")
             break
-
+        out.write(frame)
+        if time.time() - start_time >= recording_duration:
+            print("[DEBUG] Recording finished")
+            conveyor_belt.stop()
+            sys.exit()
         if show_image(canvas_image, wait_for_ms=1):
             break
         if show_image(preprocessed_image2, wait_for_ms=1, window_name="Image2"):
@@ -183,7 +189,6 @@ def calibrate_robot():
     cam = IDSCameraController()
     cam.capture_image()
     time.sleep(0.5)
-    #video_capture(cam)
     while True:
         #robot.test_robot()
         test_camera_image(cam)

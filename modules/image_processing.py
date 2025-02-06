@@ -248,67 +248,23 @@ def get_bounding_boxes_from_rectangles(rectangles):
 
 
 def warp_objects_horizontal(image, rectangles, bounding_boxes):
-    #TODO only save when object area big enough!
-    #save full image
-    if False:
-        global date_str
-        if not len(date_str):
-            date_str = datetime.now().strftime("%y%m%d_%H%M%S")
-        cur_dir = os.path.dirname(__file__)
-        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\FULL_images")
-        if not os.path.exists(image_dir):
-            os.makedirs(image_dir)
-        files_in_dir = len(os.listdir(image_dir))
-        file_name = "image_{:05d}.png".format(files_in_dir)
-        cv2.imwrite(os.path.join(image_dir, file_name), image)
-        files_in_dir += 1
-
     image_list = []
     for rect, box in zip(rectangles, bounding_boxes):
         (x, y), (width, height), angle = rect
         source_pts = box.astype("float32")
+        # coordinate of the points in box points after the rectangle has been
+        destination_pts = np.array([[0, int(height) - 1],
+                                    [0, 0],
+                                    [int(width) - 1, 0],
+                                    [int(width) - 1, int(height) - 1]], dtype="float32")
 
-        # Determine target size dynamically
-        target_size = 1024 if max(width, height) > 512 else 512
-
-        # Compute rotation matrix and rotate the entire image
-        M = cv2.getRotationMatrix2D((x, y), -angle, 1.0)
-        rotated_image = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]))
-
-        # Adjust bounding box after rotation
-        x_min = max(0, x - width // 2)
-        x_max = min(image.shape[1], x + width // 2)
-        y_min = max(0, y - height // 2)
-        y_max = min(image.shape[0], y + height // 2)
-
-        # Expand bounding box to fit target size without resizing
-        expand_x = max(0, (target_size - (x_max - x_min)) // 2)
-        expand_y = max(0, (target_size - (y_max - y_min)) // 2)
-
-        x_min = max(0, x_min - expand_x)
-        x_max = min(image.shape[1], x_max + (target_size - (x_max - x_min)))
-        y_min = max(0, y_min - expand_y)
-        y_max = min(image.shape[0], y_max + (target_size - (y_max - y_min)))
-
-        # Ensure no rounding errors
-        extra_x = (target_size - (x_max - x_min)) % 2
-        extra_y = (target_size - (y_max - y_min)) % 2
-        x_min = max(0, x_min - extra_x // 2)
-        x_max = min(image.shape[1], x_max + (extra_x - extra_x // 2))
-        y_min = max(0, y_min - extra_y // 2)
-        y_max = min(image.shape[0], y_max + (extra_y - extra_y // 2))
-
-        # Crop without resizing
-        cropped_image = rotated_image[int(y_min):int(y_max), int(x_min):int(x_max)]
-
-        # Create a target-size canvas and place the cropped image
-        padded_image = np.zeros((target_size, target_size, 3), dtype=np.uint8)
-        h, w, _ = cropped_image.shape
-        y_offset = (target_size - h) // 2
-        x_offset = (target_size - w) // 2
-        padded_image[y_offset:y_offset + h, x_offset:x_offset + w] = cropped_image
-
-        image_list.append(padded_image)
+        # the perspective transformation matrix
+        warp_matrix = cv2.getPerspectiveTransform(source_pts, destination_pts)
+        # directly warp the rotated rectangle to get the straightened rectangle
+        warped_image = cv2.warpPerspective(image, warp_matrix, (int(width), int(height)))
+        if height > width:
+            warped_image = cv2.rotate(warped_image, cv2.ROTATE_90_CLOCKWISE)
+        image_list.append(warped_image)
     return image_list
 
 
@@ -412,7 +368,7 @@ standardize_images_called = 0
 
 
 # TODO_Anom: hier Quali bilder erhöhen scaling unpassend?
-def standardize_images(image_list, xy_size=512, debug=False ):
+def standardize_images(image_list, xy_size=512, debug=True):
     print("[DEBUG] Methode standardize_images")
     global standardize_images_called
     standardize_images_called += 1
