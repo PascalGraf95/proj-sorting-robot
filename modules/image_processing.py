@@ -1,3 +1,4 @@
+import math
 import cv2
 import numpy as np
 import os
@@ -12,6 +13,7 @@ from modules.conveyor_belt import ConveyorBelt
 
 date_str = ""
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 class LenseType(Enum):
     OLD_LENS = 1
@@ -253,67 +255,110 @@ def get_bounding_boxes_from_rectangles(rectangles):
 
 
 def warp_objects_horizontal(image, rectangles, bounding_boxes):
-    #TODO only save when object area big enough!
-    #save full image
-    if False:
-        global date_str
-        if not len(date_str):
-            date_str = datetime.now().strftime("%y%m%d_%H%M%S")
-        cur_dir = os.path.dirname(__file__)
-        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\FULL_images")
-        if not os.path.exists(image_dir):
-            os.makedirs(image_dir)
-        files_in_dir = len(os.listdir(image_dir))
-        file_name = "image_{:05d}.png".format(files_in_dir)
-        cv2.imwrite(os.path.join(image_dir, file_name), image)
-        files_in_dir += 1
-
+    # # TODO only save when object area big enough!
+    # save full image
+    global date_str
+    # if not len(date_str):
+    #     date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+    # cur_dir = os.path.dirname(__file__)
+    # image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\FULL_images")
+    # if not os.path.exists(image_dir):
+    #     os.makedirs(image_dir)
+    # files_in_dir = len(os.listdir(image_dir))
+    # file_name = "image_{:05d}.png".format(files_in_dir)
+    # cv2.imwrite(os.path.join(image_dir, file_name), image)
+    # files_in_dir += 1
     image_list = []
+
     for rect, box in zip(rectangles, bounding_boxes):
         (x, y), (width, height), angle = rect
         source_pts = box.astype("float32")
 
         # Determine target size dynamically
-        target_size = 1024 if max(width, height) > 512 else 512
-
-        # Compute rotation matrix and rotate the entire image
+        target_size = max(512, int(max(width, height)))
+        print("image rotation Matrix:")
+        # Compute rotation matrix and rotate image
         M = cv2.getRotationMatrix2D((x, y), -angle, 1.0)
-        rotated_image = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]))
+        print(M)
+        cos_theta = abs(M[0,0])
+        sin_theta = abs(M[0,1])
+        new_width = int((image.shape[0]*sin_theta)+(image.shape[1]*cos_theta))
+        new_height = int((image.shape[0]*cos_theta)+(image.shape[1]*sin_theta))
+        M[0,2] += (image.shape[0]*2-image.shape[0])/2
+        M[1,2] += (image.shape[1]*2-image.shape[1])/2
+        rotated_image = cv2.warpAffine(image, M, (image.shape[1]*2, image.shape[0]*2))
+
+        if not len(date_str):
+            date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+        cur_dir = os.path.dirname(__file__)
+        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\Rotated_images")
+        if not os.path.exists(image_dir):
+            os.makedirs(image_dir)
+        files_in_dir = len(os.listdir(image_dir))
+        file_name = "image_{:05d}.png".format(files_in_dir)
+        cv2.imwrite(os.path.join(image_dir, file_name), rotated_image)
+        file_name = "image_{:05d}_Original.png".format(files_in_dir)
+        cv2.imwrite(os.path.join(image_dir, file_name), image)
+        files_in_dir += 1
+
+
+        # calculate new x, y coordinates after the rotation:
+        original_center = np.array([[x], [y], [1]])
+        new_x, new_y = np.dot(M, original_center).flatten()[:2]
 
         # Adjust bounding box after rotation
-        x_min = max(0, x - width // 2)
-        x_max = min(image.shape[1], x + width // 2)
-        y_min = max(0, y - height // 2)
-        y_max = min(image.shape[0], y + height // 2)
+        x_min = max(0, int(new_x - width // 2))  # Floor by using //
+        y_min = max(0, int(new_y - height // 2))  # Floor by using //
+        x_max = min(rotated_image.shape[1], math.ceil(new_x + width / 2))  # Ceil for max
+        y_max = min(rotated_image.shape[0], math.ceil(new_y + height / 2))  # Ceil for max
 
-        # Expand bounding box to fit target size without resizing
-        expand_x = max(0, (target_size - (x_max - x_min)) // 2)
-        expand_y = max(0, (target_size - (y_max - y_min)) // 2)
+        # Expand bounding box to match target_size
+        expand_x = max(0, target_size - (x_max - x_min))
+        expand_y = max(0, target_size - (y_max - y_min))
 
-        x_min = max(0, x_min - expand_x)
-        x_max = min(image.shape[1], x_max + (target_size - (x_max - x_min)))
-        y_min = max(0, y_min - expand_y)
-        y_max = min(image.shape[0], y_max + (target_size - (y_max - y_min)))
+        x_min = max(0, x_min - expand_x // 2)  # Floor by using //
+        x_max = min(rotated_image.shape[1], math.ceil(x_max + expand_x / 2))  # Ceil for max
+        y_min = max(0, y_min - expand_y // 2)  # Floor by using //
+        y_max = min(rotated_image.shape[0], math.ceil(y_max + expand_y / 2))  # Ceil for max
 
-        # Ensure no rounding errors
-        extra_x = (target_size - (x_max - x_min)) % 2
-        extra_y = (target_size - (y_max - y_min)) % 2
-        x_min = max(0, x_min - extra_x // 2)
-        x_max = min(image.shape[1], x_max + (extra_x - extra_x // 2))
-        y_min = max(0, y_min - extra_y // 2)
-        y_max = min(image.shape[0], y_max + (extra_y - extra_y // 2))
+        # Handle edge cases where max == image border
+        if x_max == rotated_image.shape[1]:
+            x_min = max(0, x_min - (target_size - (x_max - x_min)))
+        if y_max == rotated_image.shape[0]:
+            y_min = max(0, y_min - (target_size - (y_max - y_min)))
 
-        # Crop without resizing
-        cropped_image = rotated_image[int(y_min):int(y_max), int(x_min):int(x_max)]
+        # Ensure final crop is within image boundaries
+        cropped_image = rotated_image[y_min:y_max, x_min:x_max]
 
-        # Create a target-size canvas and place the cropped image
-        padded_image = np.zeros((target_size, target_size, 3), dtype=np.uint8)
-        h, w, _ = cropped_image.shape
-        y_offset = (target_size - h) // 2
-        x_offset = (target_size - w) // 2
-        padded_image[y_offset:y_offset + h, x_offset:x_offset + w] = cropped_image
+        # Calculate padding amounts (only if needed)
+        h, w = cropped_image.shape[:2]
+        top_pad = max(0, (target_size - h) // 2)
+        bottom_pad = max(0, target_size - h - top_pad)
+        left_pad = max(0, (target_size - w) // 2)
+        right_pad = max(0, target_size - w - left_pad)
+
+        # Apply padding only if necessary
+        if h < target_size or w < target_size:
+            padded_image = cv2.copyMakeBorder(
+                cropped_image, top_pad, bottom_pad, left_pad, right_pad,
+                borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0)  # Black padding
+            )
+        else:
+            padded_image = cropped_image  # No padding needed if already correct size
+
+        if not len(date_str):
+            date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+        cur_dir = os.path.dirname(__file__)
+        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\warp_image")
+        if not os.path.exists(image_dir):
+            os.makedirs(image_dir)
+        files_in_dir = len(os.listdir(image_dir))
+        file_name = "image_{:05d}.png".format(files_in_dir)
+        cv2.imwrite(os.path.join(image_dir, file_name), padded_image)
+        files_in_dir += 1
 
         image_list.append(padded_image)
+
     return image_list
 
 
@@ -417,7 +462,7 @@ standardize_images_called = 0
 
 
 # TODO_Anom: hier Quali bilder erhöhen scaling unpassend?
-def standardize_images(image_list, xy_size=512, debug=False ):
+def standardize_images(image_list, xy_size=512, debug=False):
     print("[DEBUG] Methode standardize_images")
     global standardize_images_called
     standardize_images_called += 1
@@ -618,29 +663,29 @@ def main():
     '''
 
 
-import cv2
-import time
-
-
 def video_capture(cam):
     print("[DEBUG] Status: Connecting to Conveyor")
     conveyor_belt = ConveyorBelt()
     conveyor_belt.start()
     time.sleep(5)
 
-    fps = 12.4  # Correct FPS
+    fps = 12.407425  # Correct FPS
     frame_interval = 1.0 / fps  # Time per frame (in seconds)
-
     out = cv2.VideoWriter('background_video.avi',
                           cv2.VideoWriter_fourcc(*'XVID'),
                           fps,
                           (int(cam.width), int(cam.height)))
 
+    if not out.isOpened():
+        print("Error: Unable to initialize videoWriter")
+        conveyor_belt.stop()
+        time.sleep(5)
+        return
+
     recording_duration = 120
     print(f'[DEBUG] FPS set to: {fps}, Recording duration: {recording_duration} sec')
-    start_time = time.time()
+    start_time = last_frame_time = time.time()
     frame_count = 0
-    last_frame_time = time.time()
 
     while True:
         current_time = time.time()
@@ -664,11 +709,6 @@ def video_capture(cam):
 
     out.release()
     print(f"[DEBUG] Total frames recorded: {frame_count}, Expected: {int(fps * recording_duration)}")
-
-
-
-
-
 
 
 if __name__ == '__main__':
