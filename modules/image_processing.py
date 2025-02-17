@@ -200,33 +200,34 @@ def image_thresholding_stack(image):
 
 
 def extract_and_filter_contours(image, min_area=15000, image_area: ImageArea = ImageArea.FULL_PATCH):
-    # Get all contours in image
+    # Get all contours in the image
     contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return []
-    # Filter the contours by hierarchy (only contours without parents shall be considered).
-    # Also filter by size. Contours too small are not considered
+
+    # Define image border limits based on image_area
+    if image_area == "TINY_PATCH":
+        x_lim, y_lim = 500, 50
+    elif image_area == "SMALL_PATCH":
+        x_lim, y_lim = 400, 50
+    else:  # FULL_PATCH or default
+        x_lim, y_lim = 20, 20
+
+    # Filter contours
     filtered_contours = []
     for c, h in zip(contours, hierarchy[0]):
-        # Contour cannot have a parent object
-        if h[3] == -1:
-            # Contour needs a certain minimum area
-            if cv2.contourArea(c) >= min_area:
-                # Contour bounding box cannot touch the image borders
-                x, y, w, h = cv2.boundingRect(c)
-                min_side = np.min([w, h])
-                if image_area == ImageArea.TINY_PATCH:
-                    x_lim = 500
-                    y_lim = 50
-                elif image_area == ImageArea.SMALL_PATCH:
-                    x_lim = 400
-                    y_lim = 50
-                else:
-                    x_lim = 20
-                    y_lim = 20
-                if x > x_lim and y > y_lim and x + w < image.shape[1] - x_lim and y + h < image.shape[
-                    0] - y_lim and min_side > 20:
+        if h[3] == -1:  # Only consider contours without a parent
+            if cv2.contourArea(c) >= min_area:  # Contour must meet minimum area requirement
+                # Get the minimum area rotated bounding box
+                rect = cv2.minAreaRect(c)
+                box = cv2.boxPoints(rect)  # Get the 4 corner points
+                box = np.int0(box)  # Convert to integer
+
+                # Ensure all points of the box are within valid image limits
+                if np.all(box[:, 0] > x_lim) and np.all(box[:, 1] > y_lim) and \
+                        np.all(box[:, 0] < 1600 - x_lim) and np.all(box[:, 1] < 1200 - y_lim):
                     filtered_contours.append(c)
+
     return filtered_contours
 
 
@@ -255,107 +256,82 @@ def get_bounding_boxes_from_rectangles(rectangles):
 
 
 def warp_objects_horizontal(image, rectangles, bounding_boxes):
-    # # TODO only save when object area big enough!
-    # save full image
     global date_str
-    # if not len(date_str):
-    #     date_str = datetime.now().strftime("%y%m%d_%H%M%S")
-    # cur_dir = os.path.dirname(__file__)
-    # image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\FULL_images")
-    # if not os.path.exists(image_dir):
-    #     os.makedirs(image_dir)
-    # files_in_dir = len(os.listdir(image_dir))
-    # file_name = "image_{:05d}.png".format(files_in_dir)
-    # cv2.imwrite(os.path.join(image_dir, file_name), image)
-    # files_in_dir += 1
     image_list = []
 
     for rect, box in zip(rectangles, bounding_boxes):
         (x, y), (width, height), angle = rect
-        source_pts = box.astype("float32")
 
-        # Determine target size dynamically
-        target_size = max(512, int(max(width, height)))
-        print("image rotation Matrix:")
-        # Compute rotation matrix and rotate image
-        M = cv2.getRotationMatrix2D((x, y), -angle, 1.0)
-        print(M)
-        cos_theta = abs(M[0,0])
-        sin_theta = abs(M[0,1])
-        new_width = int((image.shape[0]*sin_theta)+(image.shape[1]*cos_theta))
-        new_height = int((image.shape[0]*cos_theta)+(image.shape[1]*sin_theta))
-        M[0,2] += (image.shape[0]*2-image.shape[0])/2
-        M[1,2] += (image.shape[1]*2-image.shape[1])/2
-        rotated_image = cv2.warpAffine(image, M, (image.shape[1]*2, image.shape[0]*2))
+        # Step 1: Compute rotation matrix
+        (h, w) = image.shape[:2]
+        center = (w // 2, h // 2)  # Rotate around image center
+        M = cv2.getRotationMatrix2D(center, -angle, 1.0)
 
-        if not len(date_str):
-            date_str = datetime.now().strftime("%y%m%d_%H%M%S")
-        cur_dir = os.path.dirname(__file__)
-        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\Rotated_images")
-        if not os.path.exists(image_dir):
-            os.makedirs(image_dir)
-        files_in_dir = len(os.listdir(image_dir))
-        file_name = "image_{:05d}.png".format(files_in_dir)
-        cv2.imwrite(os.path.join(image_dir, file_name), rotated_image)
-        file_name = "image_{:05d}_Original.png".format(files_in_dir)
-        cv2.imwrite(os.path.join(image_dir, file_name), image)
-        files_in_dir += 1
+        # Step 2: Compute new bounding dimensions
+        cos_theta = abs(M[0, 0])
+        sin_theta = abs(M[0, 1])
 
+        # Compute new width and height after rotation (ensuring entire image fits)
+        new_width = int((h * sin_theta) + (w * cos_theta))
+        new_height = int((h * cos_theta) + (w * sin_theta))
 
-        # calculate new x, y coordinates after the rotation:
+        # Adjust transformation matrix to move image center
+        M[0, 2] += (new_width - w) // 2
+        M[1, 2] += (new_height - h) // 2
+
+        # Step 3: Rotate image with the adjusted matrix
+        rotated_image = cv2.warpAffine(image, M, (new_width, new_height), borderMode=cv2.BORDER_REFLECT,
+                                       borderValue=(255,255,255))
+
+        # Step 4: Adjust bounding box coordinates after rotation
         original_center = np.array([[x], [y], [1]])
         new_x, new_y = np.dot(M, original_center).flatten()[:2]
 
-        # Adjust bounding box after rotation
-        x_min = max(0, int(new_x - width // 2))  # Floor by using //
-        y_min = max(0, int(new_y - height // 2))  # Floor by using //
-        x_max = min(rotated_image.shape[1], math.ceil(new_x + width / 2))  # Ceil for max
-        y_max = min(rotated_image.shape[0], math.ceil(new_y + height / 2))  # Ceil for max
+        x_min = max(0, int(new_x - width // 2))
+        y_min = max(0, int(new_y - height // 2))
+        x_max = min(rotated_image.shape[1], math.ceil(new_x + width / 2))
+        y_max = min(rotated_image.shape[0], math.ceil(new_y + height / 2))
 
-        # Expand bounding box to match target_size
+        # Step 5: Expand bounding box to match target size
+        target_size = max(512, int(max(width, height)))
         expand_x = max(0, target_size - (x_max - x_min))
         expand_y = max(0, target_size - (y_max - y_min))
 
-        x_min = max(0, x_min - expand_x // 2)  # Floor by using //
-        x_max = min(rotated_image.shape[1], math.ceil(x_max + expand_x / 2))  # Ceil for max
-        y_min = max(0, y_min - expand_y // 2)  # Floor by using //
-        y_max = min(rotated_image.shape[0], math.ceil(y_max + expand_y / 2))  # Ceil for max
-
-        # Handle edge cases where max == image border
-        if x_max == rotated_image.shape[1]:
-            x_min = max(0, x_min - (target_size - (x_max - x_min)))
-        if y_max == rotated_image.shape[0]:
-            y_min = max(0, y_min - (target_size - (y_max - y_min)))
+        x_min = max(0, x_min - expand_x // 2)
+        x_max = min(rotated_image.shape[1], math.ceil(x_max + expand_x / 2))
+        y_min = max(0, y_min - expand_y // 2)
+        y_max = min(rotated_image.shape[0], math.ceil(y_max + expand_y / 2))
 
         # Ensure final crop is within image boundaries
         cropped_image = rotated_image[y_min:y_max, x_min:x_max]
 
-        # Calculate padding amounts (only if needed)
+        # Step 6: Padding if necessary
         h, w = cropped_image.shape[:2]
         top_pad = max(0, (target_size - h) // 2)
         bottom_pad = max(0, target_size - h - top_pad)
         left_pad = max(0, (target_size - w) // 2)
         right_pad = max(0, target_size - w - left_pad)
 
-        # Apply padding only if necessary
-        if h < target_size or w < target_size:
-            padded_image = cv2.copyMakeBorder(
-                cropped_image, top_pad, bottom_pad, left_pad, right_pad,
-                borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0)  # Black padding
-            )
-        else:
-            padded_image = cropped_image  # No padding needed if already correct size
+        padded_image = cv2.copyMakeBorder(
+            cropped_image, top_pad, bottom_pad, left_pad, right_pad,
+            borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0)  # Black padding
+        )
 
+        # Step 7: Save Images
         if not len(date_str):
             date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+
         cur_dir = os.path.dirname(__file__)
-        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images\warp_image")
+        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images", "warp_image")
+
         if not os.path.exists(image_dir):
             os.makedirs(image_dir)
+
         files_in_dir = len(os.listdir(image_dir))
-        file_name = "image_{:05d}.png".format(files_in_dir)
+        file_name = f"image_{files_in_dir:05d}.png"
+        file_name_r = f"image_{files_in_dir:05d}_rot.png"
         cv2.imwrite(os.path.join(image_dir, file_name), padded_image)
-        files_in_dir += 1
+        cv2.imwrite(os.path.join(image_dir, file_name_r), rotated_image)
 
         image_list.append(padded_image)
 
