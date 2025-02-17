@@ -259,6 +259,10 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
     global date_str
     image_list = []
 
+    # Ensure `date_str` is initialized
+    if 'date_str' not in globals() or not date_str:
+        date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+    generate_comparison_image(image, rectangles, bounding_boxes)
     for rect, box in zip(rectangles, bounding_boxes):
         (x, y), (width, height), angle = rect
 
@@ -267,11 +271,10 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
         center = (w // 2, h // 2)  # Rotate around image center
         M = cv2.getRotationMatrix2D(center, -angle, 1.0)
 
-        # Step 2: Compute new bounding dimensions
+        # Step 2: Compute new width and height after rotation
         cos_theta = abs(M[0, 0])
         sin_theta = abs(M[0, 1])
 
-        # Compute new width and height after rotation (ensuring entire image fits)
         new_width = int((h * sin_theta) + (w * cos_theta))
         new_height = int((h * cos_theta) + (w * sin_theta))
 
@@ -279,21 +282,42 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
         M[0, 2] += (new_width - w) // 2
         M[1, 2] += (new_height - h) // 2
 
-        # Step 3: Rotate image with the adjusted matrix
-        rotated_image = cv2.warpAffine(image, M, (new_width, new_height), borderMode=cv2.BORDER_REFLECT,
-                                       borderValue=(255,255,255))
+        # Step 3: Rotate image with BORDER_REPLICATE to avoid black borders
+        rotated_image = cv2.warpAffine(
+            image, M, (new_width, new_height), borderMode=cv2.BORDER_REPLICATE
+        )
 
-        # Step 4: Adjust bounding box coordinates after rotation
+        # Step 4: Save the rotated image before cropping
+        cur_dir = os.path.dirname(__file__)
+        rotated_image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images", "Rotated_images")
+
+        if not os.path.exists(rotated_image_dir):
+            os.makedirs(rotated_image_dir)
+
+        files_in_dir = len(os.listdir(rotated_image_dir))
+        rotated_filename = f"rotated_{files_in_dir:05d}.png"
+        cv2.imwrite(os.path.join(rotated_image_dir, rotated_filename), rotated_image)
+
+        # Step 5: Adjust bounding box coordinates after rotation
         original_center = np.array([[x], [y], [1]])
         new_x, new_y = np.dot(M, original_center).flatten()[:2]
 
         x_min = max(0, int(new_x - width // 2))
         y_min = max(0, int(new_y - height // 2))
-        x_max = min(rotated_image.shape[1], math.ceil(new_x + width / 2))
-        y_max = min(rotated_image.shape[0], math.ceil(new_y + height / 2))
+        x_max = min(rotated_image.shape[1] - 1, math.ceil(new_x + width / 2))
+        y_max = min(rotated_image.shape[0] - 1, math.ceil(new_y + height / 2))
 
-        # Step 5: Expand bounding box to match target size
-        target_size = max(512, int(max(width, height)))
+        # Step 6: Determine Target Size (512, 1024, or longer side)
+        longest_side = max(width, height)
+
+        if longest_side <= 512:
+            target_size = 512
+        elif 512 < longest_side <= 1024:
+            target_size = 1024
+        else:
+            target_size = longest_side  # Use longest side if larger than 1024
+
+        # Step 7: Expand bounding box to match target size
         expand_x = max(0, target_size - (x_max - x_min))
         expand_y = max(0, target_size - (y_max - y_min))
 
@@ -305,37 +329,135 @@ def warp_objects_horizontal(image, rectangles, bounding_boxes):
         # Ensure final crop is within image boundaries
         cropped_image = rotated_image[y_min:y_max, x_min:x_max]
 
-        # Step 6: Padding if necessary
+        # Step 8: Padding to ensure square shape using BORDER_REPLICATE
         h, w = cropped_image.shape[:2]
+
         top_pad = max(0, (target_size - h) // 2)
         bottom_pad = max(0, target_size - h - top_pad)
         left_pad = max(0, (target_size - w) // 2)
         right_pad = max(0, target_size - w - left_pad)
 
         padded_image = cv2.copyMakeBorder(
-            cropped_image, top_pad, bottom_pad, left_pad, right_pad,
-            borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0)  # Black padding
+            cropped_image,
+            top_pad, bottom_pad, left_pad, right_pad,
+            borderType=cv2.BORDER_REPLICATE  # Fill missing areas with nearest pixels
         )
 
-        # Step 7: Save Images
-        if not len(date_str):
-            date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+        # Step 9: Save the final square image
+        square_image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images", "Warped_images")
 
-        cur_dir = os.path.dirname(__file__)
-        image_dir = os.path.join(cur_dir, "..", "stored_images", date_str + "_images", "warp_image")
+        if not os.path.exists(square_image_dir):
+            os.makedirs(square_image_dir)
 
-        if not os.path.exists(image_dir):
-            os.makedirs(image_dir)
-
-        files_in_dir = len(os.listdir(image_dir))
+        files_in_dir = len(os.listdir(square_image_dir))
         file_name = f"image_{files_in_dir:05d}.png"
-        file_name_r = f"image_{files_in_dir:05d}_rot.png"
-        cv2.imwrite(os.path.join(image_dir, file_name), padded_image)
-        cv2.imwrite(os.path.join(image_dir, file_name_r), rotated_image)
+        cv2.imwrite(os.path.join(square_image_dir, file_name), padded_image)
 
         image_list.append(padded_image)
 
     return image_list
+
+
+def generate_comparison_image(image, rectangles, bounding_boxes, crop_pixels=2):
+    """
+    Creates and saves a large comparison image showing the results of different border modes.
+    """
+    print("✅ Reached: Start of generate_comparison_image")  # Debug
+
+    global date_str
+    if 'date_str' not in globals() or not date_str:
+        date_str = datetime.now().strftime("%y%m%d_%H%M%S")
+
+    print("✅ Reached: Initialized date_str =", date_str)  # Debug
+
+    # Available border modes
+    border_modes = {
+        "BORDER_CONSTANT": cv2.BORDER_CONSTANT,
+        "BORDER_REPLICATE": cv2.BORDER_REPLICATE,
+        "BORDER_REFLECT": cv2.BORDER_REFLECT,
+        "BORDER_REFLECT_101": cv2.BORDER_REFLECT_101,
+        "BORDER_WRAP": cv2.BORDER_WRAP
+    }
+
+    rotated_images_list = []
+    border_mode_labels = []
+
+    for mode_name, mode in border_modes.items():
+        print(f"✅ Reached: Processing {mode_name}")  # Debug
+        image_list = []
+
+        for rect, box in zip(rectangles, bounding_boxes):
+            (x, y), (width, height), angle = rect
+
+            # Compute rotation matrix
+            (h, w) = image.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, -angle, 1.0)
+
+            # Compute new width and height
+            new_width = int((h * abs(M[0, 1])) + (w * abs(M[0, 0])))
+            new_height = int((h * abs(M[0, 0])) + (w * abs(M[0, 1])))
+
+            M[0, 2] += (new_width - w) // 2
+            M[1, 2] += (new_height - h) // 2
+
+            print(f"✅ Reached: Rotating {mode_name}")  # Debug
+            rotated_image = cv2.warpAffine(image, M, (new_width, new_height), borderMode=mode)
+
+            if rotated_image.shape[0] > 2 * crop_pixels and rotated_image.shape[1] > 2 * crop_pixels:
+                cropped_image = rotated_image[crop_pixels:-crop_pixels, crop_pixels:-crop_pixels]
+                image_list.append(cropped_image)
+
+        if image_list:
+            rotated_images_list.append(image_list[0])
+            border_mode_labels.append(mode_name)
+
+    print("✅ Reached: Stacking images")  # Debug
+    if not rotated_images_list:
+        print("❌ No images to compare.")
+        return
+
+    # Create large stacked comparison image
+    final_comparison_image = create_horizontal_comparison(rotated_images_list, border_mode_labels)
+
+    # Save image
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    comparison_dir = os.path.join(script_dir, "..", "stored_images", date_str + "_images", "Comparison")
+    os.makedirs(comparison_dir, exist_ok=True)
+
+    comparison_filename = os.path.join(comparison_dir, "comparison_image.png")
+    success = cv2.imwrite(comparison_filename, final_comparison_image)
+
+    if success:
+        print(f"✅ Image saved at: {comparison_filename}")
+    else:
+        print(f"❌ ERROR: Failed to save {comparison_filename}")
+
+
+def create_horizontal_comparison(rotated_images, labels):
+    """
+    Creates a single large image with all rotated versions stacked side by side.
+    """
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    padding = 10
+
+    max_height = max(img.shape[0] for img in rotated_images)
+    max_width = max(img.shape[1] for img in rotated_images)
+
+    # Resize all images to the same max width and height
+    resized_rotated = [cv2.resize(img, (max_width, max_height)) for img in rotated_images]
+
+    label_images = []
+    for label in labels:
+        label_img = np.full((50, max_width, 3), 255, dtype=np.uint8)  # White background
+        cv2.putText(label_img, label, (padding, 35), font, 1, (0, 0, 0), 2)
+        label_images.append(label_img)
+
+    # Stack images side by side
+    stacked_images = [np.vstack((label_img, img)) for label_img, img in zip(label_images, resized_rotated)]
+    final_comparison_image = np.hstack(stacked_images)
+
+    return final_comparison_image
 
 
 def store_images_and_image_features(image_list, image_feature_list):
