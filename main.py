@@ -182,6 +182,7 @@ def calibrate_robot():
     cam.capture_image()
     time.sleep(0.5)
     #video_capture(cam)
+    #time.sleep(2.5)
     while True:
         #robot.test_robot()
         test_camera_image(cam)

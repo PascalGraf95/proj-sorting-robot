@@ -567,20 +567,41 @@ def standardize_images(image_list, xy_size=512, debug=False):
     print("[DEBUG] number of calls to standardize_images: ", standardize_images_called)
 
     standardized_images = []
+
     for image in image_list:
+        height, width = image.shape[:2]
+
+        # Check if image is already a power of 2 size (512x512, 1024x1024, or xy_size)
+        if (height == width) and (height in [512, 1024, xy_size]):
+            standardized_images.append(image)
+            continue
+
         print("[DEBUG] Methode standardize_images, image.shape: ", image.shape)
         print("[Debug] Methode standardize_images, xy_size: ", xy_size)
+
         if debug:
             cv2.imwrite(f"original_image_{standardize_images_called}.jpg", image)
-        background_image = np.zeros((xy_size, xy_size, 3), dtype=np.uint8)
-        old_width = image.shape[1]
-        scaling_factor = xy_size / old_width
-        scaled_image = cv2.resize(image, (0, 0), fy=scaling_factor, fx=scaling_factor)
 
-        height_mod = scaled_image.shape[0] % 2
-        background_image[background_image.shape[0] // 2 - scaled_image.shape[0] // 2 - height_mod:
-                         background_image.shape[0] // 2 + scaled_image.shape[0] // 2, :, :] = scaled_image
+        # Create black background image of xy_size
+        background_image = np.zeros((xy_size, xy_size, 3), dtype=np.uint8)
+
+        # Compute scaling factor to maintain aspect ratio
+        scaling_factor = min(xy_size / width, xy_size / height)
+
+        # Resize image with the computed scaling factor
+        new_width = int(width * scaling_factor)
+        new_height = int(height * scaling_factor)
+        scaled_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+
+        # Compute top-left corner for centering the image
+        y_offset = (xy_size - new_height) // 2
+        x_offset = (xy_size - new_width) // 2
+
+        # Place the resized image in the center of the background
+        background_image[y_offset:y_offset + new_height, x_offset:x_offset + new_width, :] = scaled_image
+
         standardized_images.append(background_image)
+
     return standardized_images
 
 
