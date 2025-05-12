@@ -22,7 +22,7 @@ class DoBotRobotController:
         self.work_frame = work_frame
 
         # Set conveyor height and maneuvering height in work frame coordinates
-        self.conveyor_height = -59.5
+        self.conveyor_height = -58
         self.maneuvering_height = -20
         self.standby_height = 60
         self.standby_position_right = (-40, 190, self.maneuvering_height, 0, 0, 0)
@@ -258,8 +258,10 @@ def main():
     robot_controller = DoBotRobotController()
     robot_controller.execute_homing()
     robot_controller.release_item()
+
     robot_controller.approach_standby_position()
     robot_controller.test_robot()
+
     robot_controller.disconnect_robot()
     return
 

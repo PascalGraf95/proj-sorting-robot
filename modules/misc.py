@@ -103,8 +103,8 @@ def calc_transformation_matrices():
     # Random Point Left: 266, 589 --> (60, -100)
 
     # cam_points = np.array([[418, 270], [1097, 414], [273, 579]]).astype(np.float32)
-    cam_points = np.array([[410, 284], [1091, 435], [266, 589]]).astype(np.float32)
-    robot_points = np.array([[-20, -60], [20, 120], [60, -100]]).astype(np.float32)
+    cam_points = np.array([[43, 243], [420, 63], [1326, 536]]).astype(np.float32)
+    robot_points = np.array([[-10, -40], [-30, 0], [20, 100]]).astype(np.float32)
     global c2r_matrix, r2c_matrix
     c2r_matrix = cv2.getAffineTransform(cam_points, robot_points)
     c2r_matrix = np.append(c2r_matrix, np.array([[0, 0, 1]]), axis=0)

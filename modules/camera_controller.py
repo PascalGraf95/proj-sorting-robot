@@ -21,7 +21,7 @@ class IDSCameraController:
         ueye.is_InitCamera(self.h_cam, None)
 
         pParam = ueye.wchar_p()
-        parameter_path = os.path.join(os.path.dirname(__file__), "configs", "camera_parameters_230224.ini")
+        parameter_path = os.path.join(os.path.dirname(__file__), "configs", "camera_parameters_241016.ini")
         pParam.value = parameter_path
         ueye.is_ParameterSet(self.h_cam, ueye.IS_PARAMETERSET_CMD_LOAD_FILE, pParam, 0)
 
@@ -86,6 +86,7 @@ def mouse_callback(event, x, y, flags, param):
 
 
 def main():
+    from robot_controller import DoBotRobotController as RobotController
     # Initialize the camera
     cam = IDSCameraController()
 
@@ -93,24 +94,30 @@ def main():
     # Global variables to store cursor position
     global cursor_x, cursor_y
     cursor_x, cursor_y = -1, -1
+    robot_controller = RobotController()
+    robot_controller.execute_homing()
+    robot_controller.release_item()
+    robot_controller.approach_standby_position()
 
-    # Connect to the camera and capture images
-    for i in range(100000):
-        frame = cam.capture_image()
-        frame = image_processing.image_preprocessing(frame)
+    while True:
+        robot_controller.test_robot()
+        # Connect to the camera and capture images
+        for i in range(100000):
+            frame = cam.capture_image()
+            frame = image_processing.image_preprocessing(frame)
 
-        # Add the cursor coordinates to the image
-        cursor_position = f"({cursor_x}, {cursor_y})"
-        cv2.putText(frame, cursor_position, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            # Add the cursor coordinates to the image
+            cursor_position = f"({cursor_x}, {cursor_y})"
+            cv2.putText(frame, cursor_position, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-        # Show the image
-        cv2.imshow("Test", frame)
-        cv2.setMouseCallback("Test", mouse_callback)
+            # Show the image
+            cv2.imshow("Test", frame)
+            cv2.setMouseCallback("Test", mouse_callback)
 
-        # Check for key press to exit
-        key = cv2.waitKey(1)
-        if key == 27:  # Press 'Esc' to exit
-            break
+            # Check for key press to exit
+            key = cv2.waitKey(1)
+            if key == 27:  # Press 'Esc' to exit
+                break
 
     # Close the camera connection and destroy all windows
     cam.close_camera_connection()

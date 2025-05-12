@@ -20,16 +20,6 @@ from ui_form import Ui_sortingGui
 from modules.extract_features import extract_dataset_features, predict_single_image_cluster, train_classifier
 import modules.image_processing as ip
 
-modules_path = Path('E:/Studierendenprojekte/proj-camera-controller_/modules/NeuronalNetworks/yolov7-segmentation').resolve()
-sys.path.append(str(modules_path))
-
-from models.common import DetectMultiBackend
-from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, Profile, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
-                           increment_path, non_max_suppression,scale_segments, print_args, scale_coords, strip_optimizer, xyxy2xywh)
-from utils.segment.general import process_mask, scale_masks, masks2segments
-from utils.torch_utils import select_device, smart_inference_mode
-
 class sortingGui(QWidget, Ui_sortingGui):
     def __init__(self, *args, **kwargs):
         super(sortingGui, self).__init__(*args, **kwargs)
@@ -46,10 +36,6 @@ class sortingGui(QWidget, Ui_sortingGui):
 
         self.image_features = None
         self.labels = None
-
-        # Initialisation of the  Objectdetection
-        self.v7mod = SegModelObjectDetect()
-        self.model = self.v7mod.loadModel(str(modules_path)+'/'+'runs/train-seg/Final2/weights/best.pt')
 
         # Initial Conditions radio buttons
         # self.ui.radio_yoloV7.setChecked(True)
@@ -149,73 +135,6 @@ class sortingGui(QWidget, Ui_sortingGui):
             print("[ERROR] No viable detection mode selected")
         return standardized_images, contours, rectangles, bounding_boxes, object_images
 
-    def detect_objects_yolo(self, preprocessed_image, store_features=False):
-        temp_image_path = "E:\\Studierendenprojekte\\proj-camera-controller_\\stored_images\\temp\\yoloImage.png"
-        cv2.imwrite(temp_image_path, preprocessed_image)
-        data = self.v7mod.loadData(temp_image_path)
-        dt = (Profile(), Profile(), Profile())
-
-        for path, im, im0s, vid_cap, s in data:
-            original = im0s
-
-            pred, proto, im = self.v7mod.predict(model=self.model, im=im, dt=dt)
-
-            for i, det in enumerate(pred):  # per image
-                print(f'[INFO] Detected {len(det)} Objects')
-
-                contours = []
-                p, im0, frame = path, im0s.copy(), getattr(data, 'frame', 0)
-
-                if len(det):
-                    masks = process_mask(proto[i], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
-
-                    # Rescale boxes from img_size to im0 size
-                    det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
-
-                    object_coordinates = self.v7mod.get_object_coordinates_from_mask(masks)
-                    binary_borders = self.v7mod.gen_image(object_coordinates, showImage=False)
-                    binary_borders_scaled = scale_masks(im.shape[2:], binary_borders, im0.shape)
-
-                    # Detect the contours in the Threshold Mask
-                    raw_contours, hierarchy = cv2.findContours(image=binary_borders_scaled[:, :, 0],
-                                                               mode=cv2.RETR_TREE,
-                                                               method=cv2.CHAIN_APPROX_NONE)
-                    cv2.drawContours(preprocessed_image, raw_contours, -1, (255, 255, 255), thickness=1)
-                    # cv2.imshow("ALL CONTOURS", preprocessed_image)
-                    # cv2.waitKey(0)
-
-                    # Filter contours by size
-                    for c in raw_contours:
-                        x, y, w, h = cv2.boundingRect(c)
-                        x_lim = 200
-                        y_lim = 50
-                        if x > x_lim and y > y_lim and x + w < original.shape[1] - x_lim and y + h < original.shape[
-                            0] - y_lim:
-                            if 200 < c.size < 1000:
-                                contours.append(c)
-
-                    print(f'[INFO] {len(contours)} viable Objects found')
-
-                # Generate Image with just the Objects
-                if len(contours) >= 0:
-                    contour_img = np.zeros_like(original)
-                    cv2.drawContours(contour_img, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
-
-                    if self.ui.radio_contour_cut.isChecked():
-                        binary_objects_image = cv2.bitwise_and(original, contour_img)
-                        rectangles = ip.get_rects_from_contours(contours)
-                        bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                        object_images = ip.warp_objects_horizontal(binary_objects_image, rectangles, bounding_boxes)
-                    else:
-                        rectangles = ip.get_rects_from_contours(contours)
-                        bounding_boxes = ip.get_bounding_boxes_from_rectangles(rectangles)
-                        object_images = ip.warp_objects_horizontal(original, rectangles, bounding_boxes)
-
-                    _, standardized_images = extract_features(contours, rectangles, object_images,
-                                                              store_features=store_features)
-                    return standardized_images, contours, rectangles, bounding_boxes, object_images
-                return None, [], [], [], None
-
     def data_collection_step(self):
         image = self._camera.capture_image()
         if self.ui.radio_classic.isChecked():
@@ -223,14 +142,6 @@ class sortingGui(QWidget, Ui_sortingGui):
             contours, rectangles, bounding_boxes, object_images = get_objects_in_preprocessed_image(preprocessed_image,
                                                                                                     smaller_image_area=True)
             _, standardized_images = extract_features(contours, rectangles, object_images, store_features=True)
-
-        elif self.ui.radio_yoloV7.isChecked():
-            preprocessed_image = image_preprocessing(image)
-            cv2.imshow("Preprocessed Image", preprocessed_image)
-            # cv2.waitKey(0)
-            standardized_images, contours, rectangles, bounding_boxes, object_images = self.detect_objects_yolo(
-                preprocessed_image, True)
-
         else:
             print("[ERROR] No viable detection mode selected")
             return
@@ -628,98 +539,6 @@ class sortingGui(QWidget, Ui_sortingGui):
             self.connect_seperator()
         except:
             pass
-
-
-class SegModelObjectDetect:
-    # ToDo: Check if model is available
-    def __init__(self):
-        # ModelData
-        self.model = None
-        self.device = ''
-        self.pt = None
-        self.stride = None
-        self.names = None
-        self.augment = False  # augmented inference
-        self.visualize = False
-        self.agnostic_nms = False
-        self.data = 'data/coco128.yaml'  # dataset.yaml path
-        self.imgsz = (640, 640)
-        self.classes = 1
-        self.conf_thres = 0.95  # confidence threshold
-        self.iou_thres = 0.4  # NMS IOU threshold
-        self.max_det = 1000
-
-    def loadModel(self, path):
-        self.device = select_device(self.device)
-        self.model = DetectMultiBackend(path, device=self.device, dnn=False, data=self.data, fp16=False)
-        self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
-        self.imgsz = check_img_size(self.imgsz, s=self.stride)  # check image size
-        return self.model
-
-    def loadData(self, source):
-        dataset = LoadImages(source, img_size=self.imgsz, stride=self.stride, auto=self.pt)
-        bs = 1  # batch_size
-
-        # Run inference
-        self.model.warmup(imgsz=(1 if self.pt else bs, 3, *self.imgsz))  # warmup
-        return dataset
-
-    def predict(self, model, im, dt):
-        with dt[0]:
-            im = torch.from_numpy(im).to(self.device)
-            im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
-            im /= 255  # 0 - 255 to 0.0 - 1.0
-            if len(im.shape) == 3:
-                im = im[None]  # expand for batch dim
-
-        # Inference
-        with dt[1]:
-            pred, out = model(im, augment=self.augment, visualize=self.visualize)
-            proto = out[1]
-
-        # NMS
-        with dt[2]:
-            pred = non_max_suppression(pred, 0.2, self.iou_thres, self.classes, self.agnostic_nms, max_det=self.max_det, nm=32)
-
-        return pred, proto, im
-
-    def get_object_coordinates_from_mask(self, masks):
-        """
-        Args:
-            masks (tensor): predicted masks on cuda, shape: [n, h, w]
-        Returns:
-            ndarray: array with 0 for no object, 1 for object
-        """
-        num_masks = len(masks)
-        if num_masks == 0:
-            return np.zeros_like(masks[0].cpu().numpy())
-
-        # Summiere alle Masken auf, um zu überprüfen, ob an den Koordinaten ein Objekt erkannt wurde
-        combined_mask = np.sum(masks.cpu().numpy(), axis=0)
-
-        # Erstelle ein binäres Image-Array: 0 für keine Objekte, 1 für erkannte Objekte
-        object_coordinates = np.where(combined_mask > 0, 1, 0)
-
-        return object_coordinates
-
-    def gen_image(self, object_coordinates, showImage=False):
-        """
-        Args:
-            binary_image: Binary Image of Objects
-            showImage(boolean) to show or don't show the generated Image
-        Returns:
-            binary_image_bgr: converted 3 channel binary image
-
-        """
-
-        binary_image_bgr = cv2.cvtColor(np.array(object_coordinates, dtype=np.uint8) * 255, cv2.COLOR_GRAY2BGR)
-
-        if showImage:
-            cv2.imshow('Binary Image', binary_image_bgr)
-            cv2.waitKey(0)
-            cv2.destroyWindow('Binary Image')
-
-        return binary_image_bgr
 
 def main():
     app = QApplication(sys.argv)
